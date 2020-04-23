@@ -61,7 +61,6 @@ int num_of_process = 0;
 int total_service_time = 0;
 
 P_PROCESS p_process;
-P_PROCESS_LIST_NODE list_head; 
 
 /*
  * move cursor position to (x, y)
@@ -129,30 +128,32 @@ void PrintProcessMenu(){
 }
 
 void PrintWorkloadTable(){
-	gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN - 1);
+	int posY = TABLE_TOP_ALIGN - 1;
+
+	gotoxy(TABLE_LEFT_ALIGN, posY);
 	puts("  Workload  ");
 
-	gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN);
+	gotoxy(TABLE_LEFT_ALIGN, ++posY);
 	puts("┌────────────────┬────────────────┬────────────────┐");
-	gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + 1);
+	gotoxy(TABLE_LEFT_ALIGN, ++posY);
 	puts("│  Process Name  │  Arrival Time  │  Service Time  │");
 
 	for(int i = 0 ; i < num_of_process ; i++){
-		gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + (i * TABLE_HIGHT) + 2);
+		gotoxy(TABLE_LEFT_ALIGN, ++posY);
 		puts("├────────────────┼────────────────┼────────────────┤");
-		gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + (i * TABLE_HIGHT) + 3);
+		gotoxy(TABLE_LEFT_ALIGN, ++posY);
 		puts("│                │                │                │");
-		gotoxy(TABLE_LEFT_ALIGN + 8, TABLE_TOP_ALIGN + (i * TABLE_HIGHT) + 3);
+		gotoxy(TABLE_LEFT_ALIGN + 8, posY);
 		printf("%c", p_process[i].name);
 		if(p_process[i].arrival > -1 && p_process[i].service > -1){
-	 		gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH + 8, TABLE_TOP_ALIGN + (i * TABLE_HIGHT) + 3);
+	 		gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH + 8, posY);
 			printf("%d", p_process[i].arrival);
-	 		gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH * 2 + 8, TABLE_TOP_ALIGN + (i * TABLE_HIGHT) + 3);
+	 		gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH * 2 + 8, posY);
 			printf("%d", p_process[i].service);
 		}
 	}
 
-	gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + ((num_of_process + 1) * TABLE_HIGHT));
+	gotoxy(TABLE_LEFT_ALIGN, ++posY);
 	puts("└────────────────┴────────────────┴────────────────┘");
 }
 
@@ -187,22 +188,28 @@ void PrintSchedMenu(){
 	SetConsoleOutColor(RESET);
 }
 
+int GetSchedTableTopAlign(){
+	return TABLE_TOP_ALIGN + ((num_of_process + 2) * TABLE_HIGHT) + LINE_SPACE;
+}
+
 void PrintSchedTable(){
-	gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + ((num_of_process + 2) * TABLE_HIGHT) + LINE_SPACE);
+	int posY = GetSchedTableTopAlign();
+
+	gotoxy(TABLE_LEFT_ALIGN, posY);
 	puts("0                             5                             10                            15                            20");
 
 	for(int i = 0 ; i < num_of_process ; i++){
-		gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + ((num_of_process + 2 + i) * TABLE_HIGHT) + LINE_SPACE + 1);
+		gotoxy(TABLE_LEFT_ALIGN, ++posY);
 		puts("├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤");
-		gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + ((num_of_process + 2 + i) * TABLE_HIGHT) + LINE_SPACE + 2);
+		gotoxy(TABLE_LEFT_ALIGN, ++posY);
 		puts("│                             │                             │                             │                             │");	
-		gotoxy(TABLE_LEFT_ALIGN - 2, TABLE_TOP_ALIGN + ((num_of_process + 2 + i) * TABLE_HIGHT) + LINE_SPACE + 2);
+		gotoxy(TABLE_LEFT_ALIGN - 2, posY);
 		SetConsoleOutColor(p_process[i].color);
 		printf("%c", p_process[i].name);
 		SetConsoleOutColor(RESET);
 	}
 	
-	gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + ((num_of_process * 2 + 2) * TABLE_HIGHT) + LINE_SPACE + 1);
+	gotoxy(TABLE_LEFT_ALIGN, ++posY);
 	puts("├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤");
 }
 
@@ -323,6 +330,46 @@ void InitSchedMenu(){
 	}
 }
 
+void NewQueue(P_PROCESS_LIST_NODE head, P_PROCESS_LIST_NODE tail){
+	head->next = tail;
+	head->before = NULL;
+	tail->before = head;
+	tail->next = NULL;
+}
+
+void QueueInsert(P_PROCESS_LIST_NODE head, PROCESS process, int start, int running){
+	P_PROCESS_LIST_NODE newNode = malloc(sizeof(PROCESS_LIST_NODE));
+	
+	newNode->process = process;
+	newNode->start = start;
+	newNode->running = running;
+
+	newNode->next = head->next;
+	head->next = newNode;
+	newNode->next->before = newNode;
+	newNode->before = head;
+}
+
+void QueueDelete(P_PROCESS_LIST_NODE tail){
+	P_PROCESS_LIST_NODE delNode = tail->before;
+
+	tail->before = delNode->before;
+	delNode->before->next = tail;
+	free(delNode);
+}
+
+void FreeQueue(P_PROCESS_LIST_NODE head){
+	P_PROCESS_LIST_NODE curr = head;
+	P_PROCESS_LIST_NODE temp;
+
+	while(curr != NULL){
+		temp = curr->next;
+		free(curr);
+		curr = temp;
+	}
+}
+
+
 const int colors[NUM_OF_COLORS] = {
 	RED, GRN, YEL, BLU, MAG, CYN
 };
@@ -355,40 +402,43 @@ void CreateProcess(){
 }
 
 void RunScheduler(int num){	
-	PrintSchedTable();
-	
-	P_PROCESS result = malloc(sizeof(PROCESS) * total_service_time);	
 	P_PROCESS sortedArr = malloc(sizeof(PROCESS) * num_of_process);
-	
 	SortByArrivalTime(sortedArr);
 
 	switch(num){
 		case 1:
-			FCFS(sortedArr, result);
+			FCFS(sortedArr);
 			break;
 	}
 
-	PrintResult(result);
-
 	free(sortedArr);	
-	free(result);
 }
 
-void PrintResult(P_PROCESS result){
-	for(int i = 0 ; i < total_service_time ; i++){
-		for(int j = 0 ; j < num_of_process ; j++){
-			if(p_process[j].name == result[i].name){
-				gotoxy(TABLE_LEFT_ALIGN + (i * 6), TABLE_TOP_ALIGN + ((num_of_process + 2 + j) * TABLE_HIGHT) + LINE_SPACE + 2);
-				printf("│");
-				SetConsoleOutColor(result[i].color);
-				printf("  %c  ", result[i].name);
-				SetConsoleOutColor(RESET);
-				printf("│");
-			} 
+void PrintResultQueue(P_PROCESS_LIST_NODE head, P_PROCESS_LIST_NODE tail){
+	PrintSchedTable();	
+	const int TOP_ALIGN = GetSchedTableTopAlign() + 2;
+	const int LEFT_MARGIN = 6;
+
+	P_PROCESS_LIST_NODE curr = head->next;
+	
+	while(curr != NULL && curr != tail){
+		int current = curr->start;
+		int index = curr->process.name - (int) 'A';
+		
+		while(current < curr->start + curr->running){
+			gotoxy(TABLE_LEFT_ALIGN + (current * LEFT_MARGIN), TOP_ALIGN + (TABLE_HIGHT * index));
+			printf("│");
+			SetConsoleOutColor(curr->process.color);
+			printf("  %c  ", curr->process.name);
+			SetConsoleOutColor(RESET);
+			printf("│");
+
+			current++;
 		}
+
+		curr = curr->next;
 	}
 }
-
 
 void SortByArrivalTime(P_PROCESS result){
 	for(int i = 0 ; i < num_of_process ; i++){
@@ -406,27 +456,22 @@ void SortByArrivalTime(P_PROCESS result){
 	}
 }
 
+void FCFS(P_PROCESS pros){
+	P_PROCESS_LIST_NODE head = malloc(sizeof(PROCESS_LIST_NODE));
+	P_PROCESS_LIST_NODE tail = malloc(sizeof(PROCESS_LIST_NODE));
+	
+	NewQueue(head, tail);
 
-void FCFS(P_PROCESS pros, P_PROCESS result){
-	int current = 0;
-	int i = 0;
-
-	while(i < num_of_process){
-		// if the process doesn't arrive yet 
-		if(pros[i].arrival > current){
-			current++;	
-			continue;
+	for(int now = 0, i = 0 ; i < num_of_process ; i++){
+		while(now < pros[i].arrival){
+			now++;
 		}
+		QueueInsert(head, pros[i], now, pros[i].service);
+		now += pros[i].service;
+	}
 
-		// run until the process finish
-		for(int j = 0 ; j < pros[i].service ; j++){	
-			// put the process into the result arr
-			result[current++] = pros[i];
-		}
-
-		// move on to the next process
-		i++;
-	} 
+	PrintResultQueue(head, tail);
+	FreeQueue(head);
 }
 
 void SPN(P_PROCESS pros, P_PROCESS result){

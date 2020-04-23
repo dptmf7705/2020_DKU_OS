@@ -49,20 +49,20 @@ void PrintSelectionBox(int index);
 void EraseSelectionBox(int index);
 void FindSelectionBoxPosition(int index);
 
-void QueueInsert();
-void QueueDelete();
-void QueueSearch();
-
-void PrintResult(P_PROCESS result);
-
 void Init();
 void InitSchedMenu();
 
+void QueueInsert(P_PROCESS_LIST_NODE head, PROCESS data, int start, int running);
+void QueueDelete(P_PROCESS_LIST_NODE tail);
+void FreeQueue(P_PROCESS_LIST_NODE head);
+
 void CreateProcess();
 void RunScheduler(int num);
+
+void PrintResultQueue(P_PROCESS_LIST_NODE head, P_PROCESS_LIST_NODE tail);
 void SortByArrivalTime(P_PROCESS arr);
 
-void FCFS(P_PROCESS arr, P_PROCESS result);
+void FCFS(P_PROCESS pros);
 
 #endif /* LAB1_HEADER_H*/
 
