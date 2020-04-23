@@ -19,9 +19,6 @@
 #define TRUE 1
 #define FALSE 0
 
-/* 
- * Process
- */
 typedef struct _PROCESS{
 	char name;
 	int color;
@@ -29,20 +26,33 @@ typedef struct _PROCESS{
 	int service;
 } PROCESS, * P_PROCESS;
 
-void clear();
+typedef struct _PROCESS_LIST_NODE{
+	PROCESS process;
+	int start;
+	int running;
+	struct _PROCESS_LIST_NODE* next;
+	struct _PROCESS_LIST_NODE* before;
+} PROCESS_LIST_NODE, * P_PROCESS_LIST_NODE;
+
 void gotoxy(int x, int y);
-void setColor(int color);
-void setCursorVisibility(int visible);
+void SetConsoleOutColor(int color);
+void SetCursorVisibility(int visible);
+
 int getch();
 
 void PrintBoard();
-void PrintNumProcessMenu();
+void PrintProcessMenu();
 void PrintWorkloadTable();
 void PrintSchedMenu();
 void PrintSchedTable();
-void PrintSelectionBox(int x, int y);
-void EraseSelectionBox(int x, int y);
-void FindSelectionBoxPosition(int num);
+void PrintSelectionBox(int index);
+void EraseSelectionBox(int index);
+void FindSelectionBoxPosition(int index);
+
+void QueueInsert();
+void QueueDelete();
+void QueueSearch();
+
 void PrintResult(P_PROCESS result);
 
 void Init();

@@ -56,22 +56,12 @@
 
 #define MAX_PROCESS 6
 
+
 int num_of_process = 0;
 int total_service_time = 0;
 
-/*
- * Array of processes
- */
 P_PROCESS p_process;
-
-/*
- * Selection box position
- */
-int p_pos[2] = {0, 0};
-
-void clear(){
-	system("clear");
-}
+P_PROCESS_LIST_NODE list_head; 
 
 /*
  * move cursor position to (x, y)
@@ -80,11 +70,11 @@ void gotoxy(int x, int y){
 	printf("\033[%d;%dH", y + 1, x + 1);
 }
 
-void setColor(int color){
+void SetConsoleOutColor(int color){
 	printf("\033[%d;1m", color);
 }
 
-void setCursorVisibility(int visible){
+void SetCursorVisibility(int visible){
 	printf("\e[?25%c", visible ==  TRUE ? 'h' : 'l');
 }
 
@@ -98,15 +88,18 @@ int getch(){
 	buf.c_lflag &= ~(ICANON|ECHO);
 	buf.c_cc[VMIN] = 1;
 	buf.c_cc[VTIME] = 0;
+
 	tcsetattr(0, TCSAFLUSH, &buf);
 	ch = getchar();
 	tcsetattr(0, TCSAFLUSH, &save);
+
 	return ch;
 }
 
+
 void PrintBoard(){
 	gotoxy(0, 0);
-	setColor(RESET);
+	SetConsoleOutColor(RESET);
 	puts("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓");
 	for(int i = 0 ; i < 44 ; i++){
 		puts("┃                                                                                                                                                                                           ┃");
@@ -114,14 +107,15 @@ void PrintBoard(){
 	puts("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛");
 	
 	gotoxy(TEXT_LEFT_ALIGN + 30, LINE_SPACE);
-        printf("SCHEDULING SIMULATOR by YESEUL LEE  (2020-1 OPERATING SYSTEM LAB1)");	
+        printf("SCHEDULING SIMULATOR by YESEUL LEE");
+      	printf("  (2020-1 OPERATING SYSTEM LAB1)");	
 }
 
-void PrintNumProcessMenu(){
-	gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN);
-	setColor(BLU);
+void PrintProcessMenu(){
+	gotoxy(TEXT_LEFT_ALIGN - 2, TEXT_TOP_ALIGN);
+	SetConsoleOutColor(BLU);
 	printf("How many process?");
-	setColor(RESET);
+	SetConsoleOutColor(RESET);
 
 	for(int i = 2 ; i <= MAX_PROCESS ; i++){
 		gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN + LINE_SPACE * (i - 1));
@@ -129,9 +123,9 @@ void PrintNumProcessMenu(){
 	}
 
 	gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN + LINE_SPACE * 6);
-	setColor(RED);
+	SetConsoleOutColor(RED);
 	printf("EXIT");
-	setColor(RESET);
+	SetConsoleOutColor(RESET);
 }
 
 void PrintWorkloadTable(){
@@ -163,14 +157,14 @@ void PrintWorkloadTable(){
 }
 
 void PrintSchedMenu(){
-	clear();
+	system("clear");
 	PrintBoard();
 	PrintWorkloadTable();
 
 	gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN);
-	setColor(BLU);
+	SetConsoleOutColor(BLU);
 	printf("Choose Scheduling Algorithm");
-	setColor(RESET);
+	SetConsoleOutColor(RESET);
 	
 	gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN + LINE_SPACE);
 	printf("FCFS(FIFO)");
@@ -188,57 +182,83 @@ void PrintSchedMenu(){
 	printf("STRIDE");
 
 	gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN + LINE_SPACE * 8);
-	setColor(RED);
+	SetConsoleOutColor(RED);
 	printf("BACK TO MAIN");
-	setColor(RESET);
+	SetConsoleOutColor(RESET);
 }
 
-void PrintSelectionBox(int x, int y){
-	gotoxy(x, y);
+void PrintSchedTable(){
+	gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + ((num_of_process + 2) * TABLE_HIGHT) + LINE_SPACE);
+	puts("0                             5                             10                            15                            20");
+
+	for(int i = 0 ; i < num_of_process ; i++){
+		gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + ((num_of_process + 2 + i) * TABLE_HIGHT) + LINE_SPACE + 1);
+		puts("├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤");
+		gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + ((num_of_process + 2 + i) * TABLE_HIGHT) + LINE_SPACE + 2);
+		puts("│                             │                             │                             │                             │");	
+		gotoxy(TABLE_LEFT_ALIGN - 2, TABLE_TOP_ALIGN + ((num_of_process + 2 + i) * TABLE_HIGHT) + LINE_SPACE + 2);
+		SetConsoleOutColor(p_process[i].color);
+		printf("%c", p_process[i].name);
+		SetConsoleOutColor(RESET);
+	}
+	
+	gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + ((num_of_process * 2 + 2) * TABLE_HIGHT) + LINE_SPACE + 1);
+	puts("├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤");
+}
+
+
+int pos[2] = {0, 0};
+
+void PrintSelectionBox(int index){
+	FindSelectionBoxPosition(index);
+
+	gotoxy(pos[0], pos[1]);
 	puts("┌─────────────────────────┐");
-	gotoxy(x, y + 1);
+	gotoxy(pos[0], pos[1] + 1);
 	puts("│");
-	gotoxy(x + SELECTION_BOX_WIDTH, y + 1);	
+	gotoxy(pos[0] + SELECTION_BOX_WIDTH, pos[1] + 1);	
 	puts("│");
-	gotoxy(x, y + 2);
+	gotoxy(pos[0], pos[1] + 2);
 	puts("└─────────────────────────┘");
 }
 
-void EraseSelectionBox(int x, int y){
-	gotoxy(x, y);
+void EraseSelectionBox(int index){
+	FindSelectionBoxPosition(index);
+
+	gotoxy(pos[0], pos[1]);
 	puts("                            ");
-	gotoxy(x, y + 1);
+	gotoxy(pos[0], pos[1] + 1);
 	puts(" ");
-	gotoxy(x + SELECTION_BOX_WIDTH, y + 1);	
+	gotoxy(pos[0] + SELECTION_BOX_WIDTH, pos[1] + 1);	
 	puts(" ");
-	gotoxy(x, y + 2);
+	gotoxy(pos[0], pos[1] + 2);
 	puts("                            ");
 }
 
-void FindSelectionBoxPosition(int num){
-	p_pos[0] = SELECTION_BOX_LEFT_ALIGN;
-	p_pos[1] = TEXT_TOP_ALIGN - 1 + (num * LINE_SPACE);
+void FindSelectionBoxPosition(int index){
+	pos[0] = SELECTION_BOX_LEFT_ALIGN;
+	pos[1] = TEXT_TOP_ALIGN - 1 + (index * LINE_SPACE);
 }
+
 
 void Init(){
-	clear();
-	setCursorVisibility(FALSE);
+	system("clear");
+	SetCursorVisibility(FALSE);
 	PrintBoard();
-	PrintNumProcessMenu();
+	PrintProcessMenu();
 
-	int menuNum = 1;
+	int menuIndex = 1;
         int key;
 
-	FindSelectionBoxPosition(menuNum);
-	PrintSelectionBox(p_pos[0], p_pos[1]);
+	PrintSelectionBox(menuIndex);
 
 	while(1){
 		key = getch();
 
 		if(key == ENTER){		// ENTER Key Pressed
-			if(menuNum == 6){	// EXIT
+			if(menuIndex == 6){	// EXIT
 				return;
-			} else if(menuNum >= 1 && menuNum <= 5){
+			} else if(menuIndex >= 1 && menuIndex <= 5){
 				break;
 			}
 		}
@@ -246,95 +266,70 @@ void Init(){
 		if(key == ARROW && (key = getch()) == ARROW_SND){
 			key = getch();
 
-			if(key == UP && menuNum > 1){
-				FindSelectionBoxPosition(menuNum);
-				EraseSelectionBox(p_pos[0], p_pos[1]);
-				menuNum--;
-				FindSelectionBoxPosition(menuNum);
-				PrintSelectionBox(p_pos[0], p_pos[1]);
-			} else if(key == DOWN && menuNum < 6){
-				FindSelectionBoxPosition(menuNum);
-				EraseSelectionBox(p_pos[0], p_pos[1]);
-				menuNum++;
-				FindSelectionBoxPosition(menuNum);
-				PrintSelectionBox(p_pos[0], p_pos[1]);	
+			if(key == UP && menuIndex > 1){
+				EraseSelectionBox(menuIndex);
+				menuIndex--;
+				PrintSelectionBox(menuIndex);
+			} else if(key == DOWN && menuIndex < 6){
+				EraseSelectionBox(menuIndex);
+				menuIndex++;
+				PrintSelectionBox(menuIndex);
 			}
 		}
 	}
 	
-	num_of_process = menuNum + 1;
+	num_of_process = menuIndex + 1;
 
 	CreateProcess();	
 }
 
 void InitSchedMenu(){
-	clear();
-	setCursorVisibility(FALSE);
+	system("clear");
+	SetCursorVisibility(FALSE);
 	PrintBoard();
 	PrintWorkloadTable();
 	PrintSchedMenu();
 
-	int menuNum = 1;
+	int menuIndex = 1;
         int key;
 
-	FindSelectionBoxPosition(menuNum);
-	PrintSelectionBox(p_pos[0], p_pos[1]);
+	PrintSelectionBox(menuIndex);
 	
 	while(1){
 		key = getch();
 		
 		if(key == ENTER){		// ENTER Key Pressed
-			if(menuNum == 8){	// BACK TO MAIN
+			if(menuIndex == 8){	// BACK TO MAIN
 				Init();
 				return;
-			} else if(menuNum >= 1 && menuNum <= 7){	
-				RunScheduler(menuNum);	
+			} else if(menuIndex >= 1 && menuIndex <= 7){	
+				RunScheduler(menuIndex);	
 			}
 		}
 		
 		if(key == ARROW && (key = getch()) == ARROW_SND){
 			key = getch();
 
-			if(key == UP && menuNum > 1){
-				FindSelectionBoxPosition(menuNum);
-				EraseSelectionBox(p_pos[0], p_pos[1]);
-				menuNum--;
-				FindSelectionBoxPosition(menuNum);
-				PrintSelectionBox(p_pos[0], p_pos[1]);
-			} else if(key == DOWN && menuNum < 8){
-				FindSelectionBoxPosition(menuNum);
-				EraseSelectionBox(p_pos[0], p_pos[1]);
-				menuNum++;
-				FindSelectionBoxPosition(menuNum);
-				PrintSelectionBox(p_pos[0], p_pos[1]);
+			if(key == UP && menuIndex > 1){
+				EraseSelectionBox(menuIndex);
+				menuIndex--;
+				PrintSelectionBox(menuIndex);
+			} else if(key == DOWN && menuIndex < 8){
+				EraseSelectionBox(menuIndex);
+				menuIndex++;
+				PrintSelectionBox(menuIndex);
 			}
 		}
 	}
 }
 
-void SortByArrivalTime(P_PROCESS result){
-	for(int i = 0 ; i < num_of_process ; i++){
-		result[i] = p_process[i];
-	}
+const int colors[NUM_OF_COLORS] = {
+	RED, GRN, YEL, BLU, MAG, CYN
+};
 
-	for(int i = 0 ; i < num_of_process - 1 ; i++){
-		for(int j = i + 1 ; j < num_of_process ; j++){
-			if(result[j].arrival < result[i].arrival){
-				PROCESS temp = result[j];
-				result[j] = result[i];
-				result[i] = temp;
-			}
-		}
-	}
-}
-
-/*
- * create new processes
- */
-void CreateProcess(){
-	const int colors[NUM_OF_COLORS] = {RED, GRN, YEL, BLU, MAG, CYN};
-	
+void CreateProcess(){	
 	p_process = malloc(sizeof(PROCESS) * num_of_process);	
+	
 	for(int i = 0 ; i < num_of_process ; i++){
 		p_process[i].name = 'A' + i;
 		p_process[i].color = colors[i % NUM_OF_COLORS];
@@ -342,7 +337,7 @@ void CreateProcess(){
 		p_process[i].service = -1;
 	}
 
-	setCursorVisibility(TRUE);
+	SetCursorVisibility(TRUE);
 	PrintWorkloadTable();
 
 	for(int i = 0 ; i < num_of_process ; i++){
@@ -357,42 +352,6 @@ void CreateProcess(){
 	InitSchedMenu();
 
 	free(p_process);
-}
-
-void PrintSchedTable(){
-	gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + ((num_of_process + 2) * TABLE_HIGHT) + LINE_SPACE);
-	puts("0                             5                             10                            15                            20");
-
-	for(int i = 0 ; i < num_of_process ; i++){
-		gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + ((num_of_process + 2 + i) * TABLE_HIGHT) + LINE_SPACE + 1);
-		puts("├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤");
-		gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + ((num_of_process + 2 + i) * TABLE_HIGHT) + LINE_SPACE + 2);
-		puts("│                             │                             │                             │                             │");	
-		gotoxy(TABLE_LEFT_ALIGN - 2, TABLE_TOP_ALIGN + ((num_of_process + 2 + i) * TABLE_HIGHT) + LINE_SPACE + 2);
-		setColor(p_process[i].color);
-		printf("%c", p_process[i].name);
-		setColor(RESET);
-	}
-	
-	gotoxy(TABLE_LEFT_ALIGN, TABLE_TOP_ALIGN + ((num_of_process * 2 + 2) * TABLE_HIGHT) + LINE_SPACE + 1);
-	puts("├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤");
-}
-
-void PrintResult(P_PROCESS result){
-	for(int i = 0 ; i < total_service_time ; i++){
-		for(int j = 0 ; j < num_of_process ; j++){
-			gotoxy(TABLE_LEFT_ALIGN + (i * 6), TABLE_TOP_ALIGN + ((num_of_process + 2 + j) * TABLE_HIGHT) + LINE_SPACE + 2);
-			printf("│");
-			if(result[i].name == p_process[j].name){
-				setColor(result[i].color);
-				printf("  %c  ", result[i].name);
-				setColor(RESET);
-			} else {
-				printf("     ");
-			}
-			printf("│");
-		}
-	}
 }
 
 void RunScheduler(int num){	
@@ -413,6 +372,38 @@ void RunScheduler(int num){
 
 	free(sortedArr);	
 	free(result);
+}
+
+void PrintResult(P_PROCESS result){
+	for(int i = 0 ; i < total_service_time ; i++){
+		for(int j = 0 ; j < num_of_process ; j++){
+			if(p_process[j].name == result[i].name){
+				gotoxy(TABLE_LEFT_ALIGN + (i * 6), TABLE_TOP_ALIGN + ((num_of_process + 2 + j) * TABLE_HIGHT) + LINE_SPACE + 2);
+				printf("│");
+				SetConsoleOutColor(result[i].color);
+				printf("  %c  ", result[i].name);
+				SetConsoleOutColor(RESET);
+				printf("│");
+			} 
+		}
+	}
+}
+
+
+void SortByArrivalTime(P_PROCESS result){
+	for(int i = 0 ; i < num_of_process ; i++){
+		result[i] = p_process[i];
+	}
+
+	for(int i = 0 ; i < num_of_process - 1 ; i++){
+		for(int j = i + 1 ; j < num_of_process ; j++){
+			if(result[j].arrival < result[i].arrival){
+				PROCESS temp = result[j];
+				result[j] = result[i];
+				result[i] = temp;
+			}
+		}
+	}
 }
 
 
@@ -437,4 +428,29 @@ void FCFS(P_PROCESS pros, P_PROCESS result){
 		i++;
 	} 
 }
+
+void SPN(P_PROCESS pros, P_PROCESS result){
+	int current = 0;
+	int i = 0;
+
+	while(i < num_of_process){
+		if(pros[i].arrival > current){
+			current++;
+			continue;
+		}
+		
+		// check if short process exists 
+		for(int j = i + 1 ; j < num_of_process ; j++){
+			if(pros[j].arrival <= current){
+
+			}	
+		}
+
+
+		for(int j = 0 ; j < pros[i].service ; j++){
+
+		}		
+	}
+}
+
 

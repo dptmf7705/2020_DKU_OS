@@ -38,7 +38,7 @@ int main(int argc, char *argv[]){
 	Init();
 	
 	gotoxy(0, 50);
-	setCursorVisibility(TRUE);
+	SetCursorVisibility(TRUE);
 
 	return 0;
 }
