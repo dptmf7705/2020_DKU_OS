@@ -34,19 +34,23 @@ void gotoxy(int x, int y);
 void setColor(int color);
 void setCursorVisibility(int visible);
 int getch();
+
 void PrintBoard();
 void PrintNumProcessMenu();
 void PrintWorkloadTable();
 void PrintSchedMenu();
+void PrintSchedTable();
 void PrintSelectionBox(int x, int y);
 void EraseSelectionBox(int x, int y);
 void FindSelectionBoxPosition(int num);
-void Init();
-void CreateProcess();
-void InitSchedMenu();
-void PrintSchedTable();
-void RunScheduler(int num);
 void PrintResult(P_PROCESS result);
+
+void Init();
+void InitSchedMenu();
+
+void CreateProcess();
+void RunScheduler(int num);
+P_PROCESS SortByArrivalTime();
 
 P_PROCESS FCFS(P_PROCESS arr);
 P_PROCESS RR(P_PROCESS arr);

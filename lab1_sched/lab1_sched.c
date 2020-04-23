@@ -57,6 +57,7 @@
 #define MAX_PROCESS 6
 
 int num_of_process = 0;
+int total_service_time = 0;
 
 /*
  * Array of processes
@@ -311,6 +312,26 @@ void InitSchedMenu(){
 	}
 }
 
+P_PROCESS SortByArrivalTime(){
+	P_PROCESS result = malloc(sizeof(PROCESS) * num_of_process);
+
+	for(int i = 0 ; i < num_of_process ; i++){
+		result[i] = p_process[i];
+	}
+
+	for(int i = 0 ; i < num_of_process - 1 ; i++){
+		for(int j = i + 1 ; j < num_of_process ; j++){
+			if(result[j].arrival < result[i].arrival){
+				PROCESS temp = result[j];
+				result[j] = result[i];
+				result[i] = temp;
+			}
+		}
+	}
+
+	return result;
+}
+
 /*
  * create new processes
  */
@@ -333,6 +354,7 @@ void CreateProcess(){
 		scanf("%d", &p_process[i].arrival);
 	 	gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH * 2 + 8, TABLE_TOP_ALIGN + (i * TABLE_HIGHT) + 3);
 		scanf("%d", &p_process[i].service);
+		total_service_time += p_process[i].service;
 	}
 
 	getchar();
@@ -413,7 +435,22 @@ void RunScheduler(int num){
 
 
 P_PROCESS FCFS(P_PROCESS arr){
+	P_PROCESS result = malloc(sizeof(PROCESS) * total_service_time);
 	
+	int current = 0;
+
+	for(int i = 0 ; i < num_of_process ; ){
+		if(arr[i].arrival <= current){
+			for(int j = 0 ; j < arr[i].service ; j++){
+				result[current++] = arr[i];
+			}
+			i++;			
+		} else {
+			current++;
+		}
+	}
+
+	return result;
 }
 
 P_PROCESS RR(P_PROCESS arr){
