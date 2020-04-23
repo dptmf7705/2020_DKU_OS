@@ -312,9 +312,7 @@ void InitSchedMenu(){
 	}
 }
 
-P_PROCESS SortByArrivalTime(){
-	P_PROCESS result = malloc(sizeof(PROCESS) * num_of_process);
-
+void SortByArrivalTime(P_PROCESS result){
 	for(int i = 0 ; i < num_of_process ; i++){
 		result[i] = p_process[i];
 	}
@@ -328,8 +326,6 @@ P_PROCESS SortByArrivalTime(){
 			}
 		}
 	}
-
-	return result;
 }
 
 /*
@@ -385,14 +381,16 @@ void PrintSchedTable(){
 void PrintResult(P_PROCESS result){
 	for(int i = 0 ; i < total_service_time ; i++){
 		for(int j = 0 ; j < num_of_process ; j++){
+			gotoxy(TABLE_LEFT_ALIGN + (i * 6), TABLE_TOP_ALIGN + ((num_of_process + 2 + j) * TABLE_HIGHT) + LINE_SPACE + 2);
+			printf("│");
 			if(result[i].name == p_process[j].name){
-				gotoxy(TABLE_LEFT_ALIGN + (i * 6), TABLE_TOP_ALIGN + ((num_of_process + 2 + j) * TABLE_HIGHT) + LINE_SPACE + 2);
-				printf("│");
 				setColor(result[i].color);
 				printf("  %c  ", result[i].name);
 				setColor(RESET);
-				printf("│");
-			}	
+			} else {
+				printf("     ");
+			}
+			printf("│");
 		}
 	}
 }
@@ -400,30 +398,14 @@ void PrintResult(P_PROCESS result){
 void RunScheduler(int num){	
 	PrintSchedTable();
 	
-	P_PROCESS sortedArr = SortByArrivalTime();
-	P_PROCESS result;
+	P_PROCESS result = malloc(sizeof(PROCESS) * total_service_time);	
+	P_PROCESS sortedArr = malloc(sizeof(PROCESS) * num_of_process);
+	
+	SortByArrivalTime(sortedArr);
 
 	switch(num){
 		case 1:
-			result = FCFS(sortedArr);
-			break;
-		case 2:
-			result = RR(sortedArr);
-			break;
-		case 3:
-			result = SPN(sortedArr);
-			break;
-		case 4:
-			result = HRRN(sortedArr);
-			break;
-		case 5:
-			result = MLFQ(sortedArr);
-			break;
-		case 6:
-			result = RM(sortedArr);
-			break;
-		case 7:
-			result = STRIDE(sortedArr);
+			FCFS(sortedArr, result);
 			break;
 	}
 
@@ -434,45 +416,25 @@ void RunScheduler(int num){
 }
 
 
-P_PROCESS FCFS(P_PROCESS arr){
-	P_PROCESS result = malloc(sizeof(PROCESS) * total_service_time);
-	
+void FCFS(P_PROCESS pros, P_PROCESS result){
 	int current = 0;
+	int i = 0;
 
-	for(int i = 0 ; i < num_of_process ; ){
-		if(arr[i].arrival <= current){
-			for(int j = 0 ; j < arr[i].service ; j++){
-				result[current++] = arr[i];
-			}
-			i++;			
-		} else {
-			current++;
+	while(i < num_of_process){
+		// if the process doesn't arrive yet 
+		if(pros[i].arrival > current){
+			current++;	
+			continue;
 		}
-	}
 
-	return result;
+		// run until the process finish
+		for(int j = 0 ; j < pros[i].service ; j++){	
+			// put the process into the result arr
+			result[current++] = pros[i];
+		}
+
+		// move on to the next process
+		i++;
+	} 
 }
 
-P_PROCESS RR(P_PROCESS arr){
-
-}
-
-P_PROCESS SPN(P_PROCESS arr){
-
-}
-
-P_PROCESS HRRN(P_PROCESS arr){
-
-}
-
-P_PROCESS MLFQ(P_PROCESS arr){
-
-}
-
-P_PROCESS RM(P_PROCESS arr){
-
-}
-
-P_PROCESS STRIDE(P_PROCESS arr){
-
-}

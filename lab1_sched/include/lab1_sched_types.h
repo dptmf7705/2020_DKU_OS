@@ -50,15 +50,9 @@ void InitSchedMenu();
 
 void CreateProcess();
 void RunScheduler(int num);
-P_PROCESS SortByArrivalTime();
+void SortByArrivalTime(P_PROCESS arr);
 
-P_PROCESS FCFS(P_PROCESS arr);
-P_PROCESS RR(P_PROCESS arr);
-P_PROCESS SPN(P_PROCESS arr);
-P_PROCESS HRRN(P_PROCESS arr);
-P_PROCESS MLFQ(P_PROCESS arr);
-P_PROCESS RM(P_PROCESS arr);
-P_PROCESS STRIDE(P_PROCESS arr);
+void FCFS(P_PROCESS arr, P_PROCESS result);
 
 #endif /* LAB1_HEADER_H*/
 
