@@ -45,7 +45,16 @@ void Init();
 void CreateProcess();
 void InitSchedMenu();
 void PrintSchedTable();
+void RunScheduler(int num);
+void PrintResult(P_PROCESS result);
 
+P_PROCESS FCFS(P_PROCESS arr);
+P_PROCESS RR(P_PROCESS arr);
+P_PROCESS SPN(P_PROCESS arr);
+P_PROCESS HRRN(P_PROCESS arr);
+P_PROCESS MLFQ(P_PROCESS arr);
+P_PROCESS RM(P_PROCESS arr);
+P_PROCESS STRIDE(P_PROCESS arr);
 
 #endif /* LAB1_HEADER_H*/
 

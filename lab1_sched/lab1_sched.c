@@ -168,7 +168,7 @@ void PrintSchedMenu(){
 
 	gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN);
 	setColor(BLU);
-	printf("Choose the Scheduling");
+	printf("Choose Scheduling Algorithm");
 	setColor(RESET);
 	
 	gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN + LINE_SPACE);
@@ -287,6 +287,7 @@ void InitSchedMenu(){
 				Init();
 				return;
 			} else if(menuNum >= 1 && menuNum <= 7){	
+				RunScheduler(menuNum);	
 			}
 		}
 		
@@ -359,4 +360,82 @@ void PrintSchedTable(){
 	puts("├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤");
 }
 
+void PrintResult(P_PROCESS result){
+	for(int i = 0 ; i < total_service_time ; i++){
+		for(int j = 0 ; j < num_of_process ; j++){
+			if(result[i].name == p_process[j].name){
+				gotoxy(TABLE_LEFT_ALIGN + (i * 6), TABLE_TOP_ALIGN + ((num_of_process + 2 + j) * TABLE_HIGHT) + LINE_SPACE + 2);
+				printf("│");
+				setColor(result[i].color);
+				printf("  %c  ", result[i].name);
+				setColor(RESET);
+				printf("│");
+			}	
+		}
+	}
+}
 
+void RunScheduler(int num){	
+	PrintSchedTable();
+	
+	P_PROCESS sortedArr = SortByArrivalTime();
+	P_PROCESS result;
+
+	switch(num){
+		case 1:
+			result = FCFS(sortedArr);
+			break;
+		case 2:
+			result = RR(sortedArr);
+			break;
+		case 3:
+			result = SPN(sortedArr);
+			break;
+		case 4:
+			result = HRRN(sortedArr);
+			break;
+		case 5:
+			result = MLFQ(sortedArr);
+			break;
+		case 6:
+			result = RM(sortedArr);
+			break;
+		case 7:
+			result = STRIDE(sortedArr);
+			break;
+	}
+
+	PrintResult(result);
+
+	free(sortedArr);	
+	free(result);
+}
+
+
+P_PROCESS FCFS(P_PROCESS arr){
+	
+}
+
+P_PROCESS RR(P_PROCESS arr){
+
+}
+
+P_PROCESS SPN(P_PROCESS arr){
+
+}
+
+P_PROCESS HRRN(P_PROCESS arr){
+
+}
+
+P_PROCESS MLFQ(P_PROCESS arr){
+
+}
+
+P_PROCESS RM(P_PROCESS arr){
+
+}
+
+P_PROCESS STRIDE(P_PROCESS arr){
+
+}
