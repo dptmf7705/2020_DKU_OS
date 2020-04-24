@@ -58,19 +58,16 @@
 #define CYN 36
 #define RESET 0
 
-#define MAX_PROCESS 6
+#define MAX_process 6
 #define NOT_DEFINE -1
 
 int num_of_process = 0;
 
-PROCESS *process_arr;
+process *process_arr;
 
-P_QUEUE readyQueue;
-P_QUEUE resultQueue;
+queue *ready_queue;
+queue *result_queue;
 
-/*
- * move cursor position to (x, y)
- */
 void gotoxy(int x, int y){
 	printf("\033[%d;%dH", y + 1, x + 1);
 }
@@ -115,7 +112,7 @@ void PrintBoard(){
 	puts("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛");
 	
 	gotoxy(TEXT_LEFT_ALIGN + 30, LINE_SPACE);
-        printf("SCHEDULING SIMULATOR by YESEUL LEE");
+        printf("schedULING SIMULATOR by YESEUL LEE");
       	printf("  (2020-1 OPERATING SYSTEM LAB1)");	
 }
 
@@ -125,7 +122,7 @@ void PrintProcessMenu(){
 	printf("How many process?");
 	SetConsoleOutColor(RESET);
 
-	for(int i = 2 ; i <= MAX_PROCESS ; i++){
+	for(int i = 2 ; i <= MAX_process ; i++){
 		gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN + LINE_SPACE * (i - 1));
 		printf("%d", i);
 	}
@@ -259,101 +256,98 @@ void EraseSelectionBox(int index){
 	puts("                            ");
 }
 
-P_QUEUE NewQueue(){
-	P_QUEUE queue = malloc(sizeof(QUEUE));	
-	P_NODE head = malloc(sizeof(NODE));	
-	P_NODE tail = malloc(sizeof(NODE));	
+queue* NewQueue(){
+	queue *q = malloc(sizeof(queue));	
+	node *head = malloc(sizeof(node));	
+	node *tail = malloc(sizeof(node));	
 
-	queue->head = head;
-	queue->tail = tail;
-	queue->count = 0;
+	q->head = head;
+	q->tail = tail;
+	q->count = 0;
 
-	queue->head->next = queue->tail;
-	queue->head->before = NULL;
+	q->head->next = q->tail;
+	q->head->before = NULL;
 
-	queue->tail->before = queue->head;
-	queue->tail->next = NULL;
+	q->tail->before = q->head;
+	q->tail->next = NULL;
 
-	return queue;
+	return q;
 }
 
-bool IsEmptyQueue(P_QUEUE queue){
-	return queue == NULL || queue->count == 0;
+bool IsEmptyQueue(queue *q){
+	return q == NULL || q->count == 0;
 }
 
-void InsertQueue(P_QUEUE queue, void *data){
-	if(queue == NULL){
-		queue = NewQueue();
-	}
+void InsertQueue(queue *q, void *data){
+	if(q == NULL)
+		q = NewQueue();
 
-	P_NODE newNode = malloc(sizeof(NODE));
+	node *newNode = malloc(sizeof(node));
 
 	newNode->data = data;
 
-	newNode->next = queue->head->next;
-	queue->head->next = newNode;
-	newNode->next->before = newNode;
-	newNode->before = queue->head;
+	newNode->before = q->tail->before;
+	q->tail->before = newNode;
+	newNode->before->next = newNode;
+	newNode->next = q->tail;
 
-	queue->count += 1;
+	q->count += 1;
 }
 
-void DeleteQueue(P_QUEUE queue, void **out){
-	if(IsEmptyQueue(queue)){
+void DeleteQueue(queue *q, void **out){
+	if(IsEmptyQueue(q)) 
 		return;
-	}
 
-	P_NODE delNode = queue->tail->before;
+	node *delNode = q->head->next;
 
 	// save data to delete
 	*out = delNode->data;	
 
-	queue->tail->before = delNode->before;
-	delNode->before->next = queue->tail;
+	q->head->next = delNode->next;
+	delNode->next->before = q->head;
 	free(delNode);
 
-	queue->count -= 1;
+	q->count -= 1;
 }
 
-void DeleteQueuePosition(P_QUEUE queue, int pos, void **out){
-	if(IsEmptyQueue(queue)){
+void DeleteQueuePosition(queue *q, int pos, void **out){
+	if(IsEmptyQueue(q))
 		return;
-	}
 
-	P_NODE delNode = queue->tail->before;
-	P_NODE prev = queue->tail;
+	node *delNode = q->head->next;
+	node *prev = q->head;
 
 	// find target node
 	for(int i = 0 ; i < pos ; i++){
 		prev = delNode;
-		delNode = delNode->before;
+		delNode = delNode->next;
 	}
 	
 	// save data to delete
 	*out = delNode->data;
 
-	prev->before = delNode->before;
-	delNode->before->next = prev;
+	prev->next = delNode->next;
+	delNode->next->before = prev;
 	free(delNode);
 
-	queue->count -= 1;
+	q->count -= 1;
 }
 
-void FreeQueue(P_QUEUE queue){
-	if(queue == NULL){
+void FreeQueue(queue *q){
+	if(q == NULL)
 		return;
-	}
 
-	P_NODE curr = queue->head;
-	P_NODE temp;
+	node *curr = q->head;
+	node *temp;
 
 	while(curr != NULL){
 		temp = curr->next;
+		free(curr->data);
 		free(curr);
 		curr = temp;
 	}
 
-	free(queue);
+	free(q);
 }
 
 
@@ -362,7 +356,7 @@ const int colors[NUM_OF_COLORS] = {
 };
 
 void CreateProcessArr(){	
-	process_arr = malloc(sizeof(PROCESS) * num_of_process);	
+	process_arr = malloc(sizeof(process) * num_of_process);	
 	
 	for(int i = 0 ; i < num_of_process ; i++){
 		process_arr[i].name = 'A' + i;
@@ -401,15 +395,16 @@ void Init(){
 	while(1){
 		key = getch();
 
-		if(key == ENTER){  /* Enter key pressed */
-			if(menuIndex == EXIT){
+		/* Enter key pressed */
+		if(key == ENTER){ 
+			if(menuIndex == EXIT)
 				return;
-			} else if(menuIndex > 0 && menuIndex < EXIT){
+			else 
 				break;
-			}
 		}
 		
-		if(key == ARROW && (key = getch()) == ARROW2){  /* Arrow key pressed */
+		/* Arrow key pressed */
+		if(key == ARROW && (key = getch()) == ARROW2){ 
 			key = getch();
 
 			if(key == UP && menuIndex > 1){
@@ -443,17 +438,17 @@ void InitSchedMenu(){
 
 	while(1){
 		key = getch();
-		
-		if(key == ENTER){  /* Enter key pressed */
-			if(menuIndex == BACK_TO_MAIN){
-				Init();
-				return;
-			} else if(menuIndex > 0 && menuIndex < BACK_TO_MAIN){	
+	
+		/* Enter key pressed */
+		if(key == ENTER){  
+			if(menuIndex == BACK_TO_MAIN)
+				break;
+			else 
 				RunScheduling(menuIndex);	
-			}
 		}
-		
-		if(key == ARROW && (key = getch()) == ARROW2){  /* Arrow key pressed */
+	
+		/* Arrow key pressed */
+		if(key == ARROW && (key = getch()) == ARROW2){  
 			key = getch();
 
 			if(key == UP && menuIndex > 1){
@@ -467,6 +462,8 @@ void InitSchedMenu(){
 			}
 		}
 	}
+
+	Init();
 }
 
 
@@ -475,9 +472,9 @@ void InitSchedMenu(){
  * already sorted by name when the processes created
  */
 void SortReadyQueueByArrivalTime(){
-	PROCESS *sortedArr = malloc(sizeof(PROCESS) * num_of_process);	
+	process *sortedArr = malloc(sizeof(process) * num_of_process);	
 
-	// copy array because we need original array to print out Workload Table
+	// copy array (original array is needed to print workload table)
 	for(int i = 0 ; i < num_of_process ; i++){
 		sortedArr[i] = process_arr[i];
 	}
@@ -486,7 +483,7 @@ void SortReadyQueueByArrivalTime(){
 	for(int i = 0 ; i < num_of_process - 1 ; i++){
 		for(int j = i + 1 ; j < num_of_process ; j++){
 			if(sortedArr[j].arrival < sortedArr[i].arrival){
-				PROCESS temp = sortedArr[j];
+				process temp = sortedArr[j];
 				sortedArr[j] = sortedArr[i];
 				sortedArr[i] = temp;
 			}
@@ -495,7 +492,7 @@ void SortReadyQueueByArrivalTime(){
 
 	// insert array into ready queue 
 	for(int i = 0 ; i < num_of_process ; i++){
-		InsertQueue(readyQueue, &sortedArr[i]);
+		InsertQueue(ready_queue, &sortedArr[i]);
 	}
 }
 
@@ -505,19 +502,19 @@ void PrintResultQueue(){
 
 	PrintSchedTable();
 
-	SCHED_PROCESS *process = malloc(sizeof(SCHED_PROCESS));
+	sched_process *proc = malloc(sizeof(sched_process));
 
-	while(!IsEmptyQueue(resultQueue)){
-		DeleteQueue(resultQueue, (void**)&process); 
+	while(!IsEmptyQueue(result_queue)){
+		DeleteQueue(result_queue, (void**)&proc); 
 		
-		int now = process->start;
-		int index = process->name - (int) 'A';
+		int now = proc->start;
+		int index = proc->name - (int) 'A';
 		
-		while(now < (process->start + process->running)){
+		while(now < (proc->start + proc->running)){
 			gotoxy(TABLE_LEFT_ALIGN + (now * LEFT_SPACE), TOP_ALIGN + (TABLE_HEIGHT * index));
 			printf("│");
-			SetConsoleOutColor(process->color);
-			printf("  %c  ", process->name);
+			SetConsoleOutColor(proc->color);
+			printf("  %c  ", proc->name);
 			SetConsoleOutColor(RESET);
 			printf("│");
 			
@@ -527,8 +524,8 @@ void PrintResultQueue(){
 }
 
 void RunScheduling(int index){
-	readyQueue = NewQueue();	
-	resultQueue = NewQueue();	
+	ready_queue = NewQueue();	
+	result_queue = NewQueue();	
 	
 	SortReadyQueueByArrivalTime();	
 
@@ -540,41 +537,41 @@ void RunScheduling(int index){
 
 	PrintResultQueue();
 	
-	FreeQueue(readyQueue);
-	FreeQueue(resultQueue);
+	FreeQueue(ready_queue);
+	FreeQueue(result_queue);
 }
 
-SCHED_PROCESS* NewSchedProcess(PROCESS *source, int start, int running){
-	SCHED_PROCESS *schedProc = malloc(sizeof(SCHED_PROCESS));
+sched_process* NewSchedProcess(process *source, int start, int running){
+	sched_process *proc = malloc(sizeof(sched_process));
 	
-	schedProc->name = source->name;
-	schedProc->color = source->color;
-	schedProc->start = start;
-	schedProc->running = running;
+	proc->name = source->name;
+	proc->color = source->color;
+	proc->start = start;
+	proc->running = running;
 
-	return schedProc;
+	return proc;
 }
 
 void FCFS(){
 	// process to run
-	PROCESS *process = malloc(sizeof(PROCESS));
+	process *proc = malloc(sizeof(process));
 
 	int now = 0;
 
-	while(!IsEmptyQueue(readyQueue)){
+	while(!IsEmptyQueue(ready_queue)){
 		// get next process from ready queue
-		DeleteQueue(readyQueue, (void **)&process);
+		DeleteQueue(ready_queue, (void **)&proc);
 
 		// wait until the process arrive
-		while(now < process->arrival){
+		while(now < proc->arrival){
 			now++;
 		}
 
 		// insert process into result queue
-		InsertQueue(resultQueue, NewSchedProcess(process, now, process->service));
+		InsertQueue(result_queue, NewSchedProcess(proc, now, proc->service));
 
 		// run until the process finished
-		now += process->service;
+		now += proc->service;
 	}
 }
 
