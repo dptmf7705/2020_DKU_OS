@@ -278,6 +278,19 @@ bool IsEmptyQueue(queue *q){
 	return q == NULL || q->count == 0;
 }
 
+void* getFromQueue(queue *q, int pos){
+	if(IsEmptyQueue(q) || pos >= q->count)
+		return NULL;
+
+	node *target = q->head->next;
+
+	for(int i = 0 ; i < pos ; i++){
+		target = target->next;
+	}
+
+	return target->data;
+}
+
 void InsertQueue(queue *q, void *data){
 	if(q == NULL)
 		q = NewQueue();
@@ -294,42 +307,47 @@ void InsertQueue(queue *q, void *data){
 	q->count += 1;
 }
 
-void DeleteQueue(queue *q, void **out){
+void DeleteQueue(queue *q, void **data){
 	if(IsEmptyQueue(q)) 
 		return;
 
-	node *delNode = q->head->next;
+	node *target = q->head->next;
 
 	// save data to delete
-	*out = delNode->data;	
+	*data = target->data;	
 
-	q->head->next = delNode->next;
-	delNode->next->before = q->head;
-	free(delNode);
+	q->head->next = target->next;
+	target->next->before = q->head;
+	free(target);
 
 	q->count -= 1;
 }
 
-void DeleteQueuePosition(queue *q, int pos, void **out){
-	if(IsEmptyQueue(q))
+void DeleteQueuePosition(queue *q, int pos, void **data){
+	if(IsEmptyQueue(q) || pos >= q->count)
 		return;
 
-	node *delNode = q->head->next;
-	node *prev = q->head;
+	node *target = q->head->next;
 
 	// find target node
 	for(int i = 0 ; i < pos ; i++){
-		prev = delNode;
-		delNode = delNode->next;
+		target = target->next;
 	}
-	
+
+	DeleteQueueNode(q, target, data);	
+}
+
+void DeleteQueueNode(queue *q, node *node, void **data){
+	if(IsEmptyQueue(q))
+		return;
+
 	// save data to delete
-	*out = delNode->data;
+	*data = node->data;
 
-	prev->next = delNode->next;
-	delNode->next->before = prev;
-	free(delNode);
-
+	node->before->next = node->next;
+	node->next->before = node->before;
+	free(node);
+	
 	q->count -= 1;
 }
 
@@ -533,6 +551,9 @@ void RunScheduling(int index){
 		case 1:
 			FCFS();
 			break;
+		case 3:
+			SJF();
+			break;
 	}
 
 	PrintResultQueue();
@@ -562,7 +583,7 @@ void FCFS(){
 		// get next process from ready queue
 		DeleteQueue(ready_queue, (void **)&proc);
 
-		// wait until the process arrive
+		// wait until process arrive
 		while(now < proc->arrival){
 			now++;
 		}
@@ -575,4 +596,47 @@ void FCFS(){
 	}
 }
 
+void SJF(){
+	// process to run
+	process *proc = malloc(sizeof(process));
 
+	int now = 0;
+
+	while(!IsEmptyQueue(ready_queue)){
+		node *curr = ready_queue->head->next;
+		node *next = curr->next;
+		
+		process *currProc = (process *) curr->data;
+		process *nextProc = (process *) next->data;
+		
+		// wait until process arrive
+		while(now < currProc->arrival){
+			now++;
+		}
+
+		// find the shortest process among the arrived processes 
+		while(nextProc != NULL && nextProc->arrival <= now){
+			/* end of queue */
+			if(next == ready_queue->tail)
+				break;
+			
+			/* next is shorter then current */ 
+			if(currProc->service > nextProc->service){
+				curr = next;
+				currProc = nextProc;
+			}
+			
+			next = next->next;
+			nextProc = (process *) next->data;
+		}
+		
+		// get current process from ready queue
+		DeleteQueueNode(ready_queue, curr, (void **)&proc);
+
+		// insert the process into result queue
+		InsertQueue(result_queue, NewSchedProcess(proc, now, proc->service));
+
+		// run until the process finished
+		now += proc->service;
+	}
+}
