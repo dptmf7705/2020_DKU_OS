@@ -14,32 +14,69 @@
 #define _LAB1_HEADER_H
 
 /*
- * Boolean 
+ * boolean type 
  */
-#define TRUE 1
-#define FALSE 0
+typedef enum {
+	true 	= 1,
+	false 	= 0,
+	TRUE 	= 1,
+	FALSE 	= 0
+} bool;
 
-typedef struct _PROCESS{
-	char name;
-	int color;
-	int arrival;
-	int service;
-} PROCESS, * P_PROCESS;
+/*
+ * process info
+ */
+typedef struct _process {
+	char	name;
+	int	color;
+	int	arrival;
+	int	service;
+} process;
 
-typedef struct _PROCESS_LIST_NODE{
-	PROCESS process;
-	int start;
-	int running;
-	struct _PROCESS_LIST_NODE* next;
-	struct _PROCESS_LIST_NODE* before;
-} PROCESS_LIST_NODE, * P_PROCESS_LIST_NODE;
+/*
+ * process scheduling info
+ */
+typedef struct _sched_process {
+	char	name;
+	int	color;
+	int	start;
+	int	running;
+	int	finish;
+} sched_process;
 
+typedef	struct _node {
+	void		*data;
+	struct	_node	*next;
+	struct	_node	*before;
+} node;
+
+typedef struct _queue {
+	node	*head;
+	node	*tail;
+	int	count;
+} queue;
+
+/*
+ * move cursor position to (x, y)
+ */
 void gotoxy(int x, int y);
-void SetConsoleOutColor(int color);
-void SetCursorVisibility(int visible);
 
+/*
+ * change console output text color
+ */
+void SetConsoleOutColor(int color);
+
+void SetCursorVisibility(bool visible);
+
+/*
+ * get console input charactor
+ */
 int getch();
 
+
+/*
+ * formatting output
+ */
 void PrintBoard();
 void PrintProcessMenu();
 void PrintWorkloadTable();
@@ -48,21 +85,42 @@ void PrintSchedTable();
 void PrintSelectionBox(int index);
 void EraseSelectionBox(int index);
 void FindSelectionBoxPosition(int index);
+int GetSchedTableTopAlign();
 
+
+/*
+ * init menu
+ */
 void Init();
 void InitSchedMenu();
+void CreateProcessArr();	
 
-void QueueInsert(P_PROCESS_LIST_NODE head, PROCESS data, int start, int running);
-void QueueDelete(P_PROCESS_LIST_NODE tail);
-void FreeQueue(P_PROCESS_LIST_NODE head);
 
-void CreateProcess();
-void RunScheduler(int num);
+/*
+ * managing queue
+ */
+queue* NewQueue();
+bool IsEmptyQueue(queue *q);
+void InsertQueue(queue *q, void *data);
+void DeleteQueue(queue *q, void **out);
+void DeleteQueuePosition(queue *q, int pos, void **out);
+void FreeQueue(queue *q);
 
-void PrintResultQueue(P_PROCESS_LIST_NODE head, P_PROCESS_LIST_NODE tail);
-void SortByArrivalTime(P_PROCESS arr);
 
-void FCFS(P_PROCESS pros);
+/* 
+ * init scheduling 
+ */
+sched_process* NewSchedProcess(process *source, int start, int running);
+
+void SortReadyQueueByArrivalTime();
+void RunScheduling(int num);
+void PrintResultQueue();
+
+
+/*
+ * scheduling algorithms 
+ */
+void FCFS();
 
 #endif /* LAB1_HEADER_H*/
 
