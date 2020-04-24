@@ -14,29 +14,45 @@
 #define _LAB1_HEADER_H
 
 /*
- * Boolean 
+ * boolean type 
  */
-#define TRUE 1
-#define FALSE 0
+typedef enum {
+	true = 1,
+	false = 0,
+	TRUE = 1,
+	FALSE = 0
+} bool;
 
-typedef struct _PROCESS{
+typedef struct {
 	char name;
 	int color;
 	int arrival;
 	int service;
-} PROCESS, * P_PROCESS;
+} PROCESS;
 
-typedef struct _PROCESS_LIST_NODE{
-	PROCESS process;
+typedef struct {
+	char name;
+	int color;
 	int start;
 	int running;
-	struct _PROCESS_LIST_NODE* next;
-	struct _PROCESS_LIST_NODE* before;
-} PROCESS_LIST_NODE, * P_PROCESS_LIST_NODE;
+	int finish;
+} SCHED_PROCESS;
+
+typedef struct _NODE{
+	void* data;
+	struct _NODE* next;
+	struct _NODE* before;
+} NODE, * P_NODE;
+
+typedef struct _QUEUE{
+	P_NODE head; // insert
+	P_NODE tail; // delete
+	int count;
+} QUEUE, * P_QUEUE;
 
 void gotoxy(int x, int y);
 void SetConsoleOutColor(int color);
-void SetCursorVisibility(int visible);
+void SetCursorVisibility(bool visible);
 
 int getch();
 
@@ -52,17 +68,23 @@ void FindSelectionBoxPosition(int index);
 void Init();
 void InitSchedMenu();
 
-void QueueInsert(P_PROCESS_LIST_NODE head, PROCESS data, int start, int running);
-void QueueDelete(P_PROCESS_LIST_NODE tail);
-void FreeQueue(P_PROCESS_LIST_NODE head);
+P_QUEUE NewQueue();
+bool IsEmptyQueue(P_QUEUE queue);
+void InsertQueue(P_QUEUE queue, void *data);
+void DeleteQueue(P_QUEUE queue, void **out);
+void DeleteQueuePosition(P_QUEUE queue, int pos, void **out);
+void FreeQueue(P_QUEUE queue);
 
-void CreateProcess();
-void RunScheduler(int num);
+void CreateProcessArr();	
+void SortReadyQueueByArrivalTime();
+void RunScheduling(int num);
 
-void PrintResultQueue(P_PROCESS_LIST_NODE head, P_PROCESS_LIST_NODE tail);
-void SortByArrivalTime(P_PROCESS arr);
+int GetSchedTableTopAlign();
+void PrintResultQueue();
 
-void FCFS(P_PROCESS pros);
+SCHED_PROCESS* NewSchedProcess(PROCESS *source, int start, int running);
+
+void FCFS();
 
 #endif /* LAB1_HEADER_H*/
 
