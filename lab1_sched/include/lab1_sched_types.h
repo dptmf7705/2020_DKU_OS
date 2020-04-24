@@ -101,9 +101,11 @@ void CreateProcessArr();
  */
 queue* NewQueue();
 bool IsEmptyQueue(queue *q);
+void* getFromQueue(queue *q, int pos);
 void InsertQueue(queue *q, void *data);
-void DeleteQueue(queue *q, void **out);
-void DeleteQueuePosition(queue *q, int pos, void **out);
+void DeleteQueue(queue *q, void **data);
+void DeleteQueuePosition(queue *q, int pos, void **data);
+void DeleteQueueNode(queue *q, node *node, void **data);
 void FreeQueue(queue *q);
 
 
@@ -121,7 +123,7 @@ void PrintResultQueue();
  * scheduling algorithms 
  */
 void FCFS();
-
+void SJF();
 #endif /* LAB1_HEADER_H*/
 
 
