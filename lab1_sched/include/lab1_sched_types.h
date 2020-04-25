@@ -131,6 +131,7 @@ node* GetShortestProcNodeInReadyQueue();
 void FCFS();
 void RR();
 void SJF();
+void HRRN();
 
 #endif /* LAB1_HEADER_H*/
 

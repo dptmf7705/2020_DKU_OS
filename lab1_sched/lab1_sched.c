@@ -569,10 +569,13 @@ void RunScheduling(int index){
 			FCFS();
 			break;
 		case 2:
-			RR(1);
+			RR(4);
 			break;
 		case 3:
 			SJF();
+			break;
+		case 4:
+			HRRN();
 			break;
 	}
 
@@ -596,7 +599,7 @@ sched_process* NewSchedProcess(process *source, int start, int running){
 /*
  * find the shortest process node in ready queue
  */
-node* GetShortestProcNodeInReadyQueue(){
+node* GetShortestProcessNode(){
 	if(IsEmptyQueue(ready_queue))
 		return NULL;
 
@@ -612,6 +615,39 @@ node* GetShortestProcNodeInReadyQueue(){
 	}
 
 	return shortest;
+}
+
+/*
+ * calculate response ratio
+ * 1 + ( Waiting Time / Estimated Run Time )
+ */
+float GetResponseRatio(int now, process *proc){
+	return 1 + (float) (now - proc->arrival) / (float) proc->service;
+}
+
+/*
+ * find the highest response ratio process node in ready queue
+ */
+node* GetHighestResponseRatioNode(int now){
+	if(IsEmptyQueue(ready_queue))
+		return NULL;
+
+	node *curr = ready_queue->head->next;
+	process *currPros = (process *) curr->data;
+
+	node *highest = curr;
+	float maxRatio = GetResponseRatio(now, currPros);
+	while(curr != NULL && curr != ready_queue->tail){
+		float currRatio = GetResponseRatio(now, currPros);
+		if(maxRatio < currRatio){
+			highest = curr;
+			maxRatio = currRatio;
+		}
+		curr = curr->next;
+		currPros = (process *) curr->data;	
+	}
+
+	return highest;
 }
 
 void FCFS(){
@@ -634,39 +670,6 @@ void FCFS(){
 
 		// get first process from ready queue 
 		DeleteQueue(ready_queue, (void **)&runProc);
-
-		// run until the process finish
-		runProc->start = now;
-		for(int i = 0 ; i < runProc->service ; i++){
-			InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
-			UpdateReadyQueue(++now);
-		}
-		runProc->remain = 0;
-		runProc->finish = now;
-	}
-}
-
-void SJF(){
-	// process to run
-	process *runProc = malloc(sizeof(process));
-	
-	int now = 0;
-
-	UpdateReadyQueue(now);
-
-	while(now < MAX_TIME){
-		// wait for new process 
-		while(IsEmptyQueue(ready_queue) && now < MAX_TIME){
-			UpdateReadyQueue(++now);
-		}
-
-		// finish scheduling
-		if(now == MAX_TIME)
-			break;
-
-		// find the shortest process and delete it from queue
-		node *shortest = GetShortestProcNodeInReadyQueue();
-		DeleteQueueNode(ready_queue, shortest, (void **) &runProc);
 
 		// run until the process finish
 		runProc->start = now;
@@ -720,6 +723,72 @@ void RR(const int t_slice){
 			UpdateReadyQueueTimeout(runProc);
 		else 
 			runProc->finish = now;
+	}
+}
+
+void SJF(){
+	// process to run
+	process *runProc = malloc(sizeof(process));
+	
+	int now = 0;
+
+	UpdateReadyQueue(now);
+
+	while(now < MAX_TIME){
+		// wait for new process 
+		while(IsEmptyQueue(ready_queue) && now < MAX_TIME){
+			UpdateReadyQueue(++now);
+		}
+
+		// finish scheduling
+		if(now == MAX_TIME)
+			break;
+
+		// find the shortest process and delete it from queue
+		node *shortest = GetShortestProcessNode();
+		DeleteQueueNode(ready_queue, shortest, (void **) &runProc);
+
+		// run until the process finish
+		runProc->start = now;
+		for(int i = 0 ; i < runProc->service ; i++){
+			InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
+			UpdateReadyQueue(++now);
+		}
+		runProc->remain = 0;
+		runProc->finish = now;
+	}
+}
+
+void HRRN(){
+	// process to run
+	process *runProc = malloc(sizeof(process));
+	
+	int now = 0;
+
+	UpdateReadyQueue(now);
+
+	while(now < MAX_TIME){
+		// wait for new process 
+		while(IsEmptyQueue(ready_queue) && now < MAX_TIME){
+			UpdateReadyQueue(++now);
+		}
+
+		// finish scheduling
+		if(now == MAX_TIME)
+			break;
+
+		// find the shortest process and delete it from queue
+		node *highest = GetHighestResponseRatioNode(now);
+		DeleteQueueNode(ready_queue, highest, (void **) &runProc);
+
+		// run until the process finish
+		runProc->start = now;
+		for(int i = 0 ; i < runProc->service ; i++){
+			InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
+			UpdateReadyQueue(++now);
+		}
+		runProc->remain = 0;
+		runProc->finish = now;
 	}
 }
 
