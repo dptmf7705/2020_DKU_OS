@@ -362,7 +362,6 @@ void FreeQueue(queue *q){
 
 	while(curr != NULL){
 		temp = curr->next;
-		free(curr->data);
 		free(curr);
 		curr = temp;
 	}
@@ -401,7 +400,6 @@ void CreateProcessArr(){
 	}
 	getchar();
 	
-	SortProcessArrByArrivalTime();
 	InitSchedMenu();
 
 	free(process_arr);
@@ -501,7 +499,7 @@ void InitSchedMenu(){
 void SortProcessArrByArrivalTime(){
 	// copy array (original array is needed to print workload table)
 	for(int i = 0 ; i < num_of_process ; i++){
-		process_arr_sorted[i] = process_arr[i];
+		memcpy(process_arr_sorted + i, process_arr + i, sizeof(process));
 	}
 
 	// sort by arrival time
@@ -516,21 +514,15 @@ void SortProcessArrByArrivalTime(){
 	}
 }
 
-/*
- * sort by
- * 1_ new process (just arrived)
- * 2_ timeout process (state changed from RUN to READY)
- *
- * check
- * 1_ remaining service time base on current time 
- */
-void UpdateReadyQueue(int now, process *proc){
+void UpdateReadyQueue(int now){
 	// insert new process first
 	for(int i = 0 ; i < num_of_process ; i++){
 		if(process_arr_sorted[i].arrival == now)
 			InsertQueue(ready_queue, &process_arr_sorted[i]);
 	}
+}
 
+void UpdateReadyQueueTimeout(process *proc){
 	// insert timeout process if service time remains
 	if(proc != NULL && proc->remain > 0){
 		InsertQueue(ready_queue, proc);
@@ -570,11 +562,14 @@ void RunScheduling(int index){
 	// init result queue
 	result_queue = NewQueue();	
 	
+	SortProcessArrByArrivalTime();
+	
 	switch(index){
 		case 1:
 			FCFS();
 			break;
 		case 2:
+			RR(1);
 			break;
 		case 3:
 			SJF();
@@ -625,12 +620,12 @@ void FCFS(){
 	
 	int now = 0;
 	
-	UpdateReadyQueue(now, NULL);
+	UpdateReadyQueue(now);
 
 	while(now < MAX_TIME){
 		// wait for new process 
 		while(now < MAX_TIME && IsEmptyQueue(ready_queue)){
-			UpdateReadyQueue(++now, NULL);
+			UpdateReadyQueue(++now);
 		}
 
 		// finish scheduling
@@ -644,7 +639,7 @@ void FCFS(){
 		runProc->start = now;
 		for(int i = 0 ; i < runProc->service ; i++){
 			InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
-			UpdateReadyQueue(++now, NULL);
+			UpdateReadyQueue(++now);
 		}
 		runProc->remain = 0;
 		runProc->finish = now;
@@ -657,12 +652,12 @@ void SJF(){
 	
 	int now = 0;
 
-	UpdateReadyQueue(now, NULL);
+	UpdateReadyQueue(now);
 
 	while(now < MAX_TIME){
 		// wait for new process 
 		while(IsEmptyQueue(ready_queue) && now < MAX_TIME){
-			UpdateReadyQueue(++now, NULL);
+			UpdateReadyQueue(++now);
 		}
 
 		// finish scheduling
@@ -677,10 +672,54 @@ void SJF(){
 		runProc->start = now;
 		for(int i = 0 ; i < runProc->service ; i++){
 			InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
-			UpdateReadyQueue(++now, NULL);
+			UpdateReadyQueue(++now);
 		}
 		runProc->remain = 0;
 		runProc->finish = now;
+	}
+}
+
+void RR(const int t_slice){
+	// process to run
+	process *runProc = malloc(sizeof(process));
+
+	int now = 0;
+
+	UpdateReadyQueue(now);
+
+	while(now < MAX_TIME){
+		// wait for new process
+		while(IsEmptyQueue(ready_queue) && now < MAX_TIME){
+			UpdateReadyQueue(++now);
+		}
+
+		// finish scheduling
+		if(now == MAX_TIME)
+			break;
+
+		// get first process from ready queue 
+		DeleteQueue(ready_queue, (void **) &runProc);
+
+		/* process first run */
+		if(runProc->start == NOT_DEFINE)
+			runProc->start = now;
+
+		// run process during time quantum
+		for(int i = 0 ; i < t_slice ; i++){
+			runProc->remain -= 1;	
+			InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
+			UpdateReadyQueue(++now);
+
+			/* process finish */
+			if(runProc->remain == 0)
+				break;
+		}
+
+		/* service time remains */
+		if(runProc->remain != 0)
+			UpdateReadyQueueTimeout(runProc);
+		else 
+			runProc->finish = now;
 	}
 }
 
