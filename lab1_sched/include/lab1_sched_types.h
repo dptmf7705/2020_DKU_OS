@@ -70,6 +70,8 @@ void SetConsoleOutColor(int color);
 
 void SetCursorVisibility(bool visible);
 
+int Pow(int a, int b);
+
 /*
  * get console input charactor
  */
@@ -129,9 +131,11 @@ node* GetShortestProcNodeInReadyQueue();
  * scheduling algorithms 
  */
 void FCFS();
-void RR();
+void RR(const int t_quantum);
 void SJF();
 void HRRN();
+void MLFQ(const int t_quantum);
+void MLFQ_2i();
 
 #endif /* LAB1_HEADER_H*/
 
