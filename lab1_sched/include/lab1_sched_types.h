@@ -118,7 +118,8 @@ void FreeQueue(queue *q);
 sched_process* NewSchedProcess(process *source, int start, int running);
 
 void RunScheduling(int num);
-void UpdateReadyQueue(int now, process *proc);
+void UpdateReadyQueue(int now);
+void UpdateReadyQueueTimeout(process *proc);
 void PrintResultQueue();
 
 node* GetShortestProcNodeInReadyQueue();
@@ -128,6 +129,7 @@ node* GetShortestProcNodeInReadyQueue();
  * scheduling algorithms 
  */
 void FCFS();
+void RR();
 void SJF();
 
 #endif /* LAB1_HEADER_H*/
