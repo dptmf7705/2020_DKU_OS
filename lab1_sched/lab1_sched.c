@@ -58,12 +58,14 @@
 #define CYN 36
 #define RESET 0
 
-#define MAX_process 6
+#define MAX_PROCESS 6
+#define MAX_TIME 20
 #define NOT_DEFINE -1
 
 int num_of_process = 0;
 
 process *process_arr;
+process *process_arr_sorted;
 
 queue *ready_queue;
 queue *result_queue;
@@ -122,7 +124,7 @@ void PrintProcessMenu(){
 	printf("How many process?");
 	SetConsoleOutColor(RESET);
 
-	for(int i = 2 ; i <= MAX_process ; i++){
+	for(int i = 2 ; i <= MAX_PROCESS ; i++){
 		gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN + LINE_SPACE * (i - 1));
 		printf("%d", i);
 	}
@@ -375,12 +377,16 @@ const int colors[NUM_OF_COLORS] = {
 
 void CreateProcessArr(){	
 	process_arr = malloc(sizeof(process) * num_of_process);	
+	process_arr_sorted = malloc(sizeof(process) * num_of_process);	
 	
 	for(int i = 0 ; i < num_of_process ; i++){
 		process_arr[i].name = 'A' + i;
 		process_arr[i].color = colors[i % NUM_OF_COLORS];
 		process_arr[i].arrival = NOT_DEFINE;
 		process_arr[i].service = NOT_DEFINE;
+		process_arr[i].start = NOT_DEFINE;
+		process_arr[i].remain = NOT_DEFINE;
+		process_arr[i].finish = NOT_DEFINE;
 	}
 
 	SetCursorVisibility(true);
@@ -391,12 +397,15 @@ void CreateProcessArr(){
 		scanf("%d", &process_arr[i].arrival);
 	 	gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH * 2 + 8, TABLE_TOP_ALIGN + (i * TABLE_HEIGHT) + 3);
 		scanf("%d", &process_arr[i].service);
+		process_arr[i].remain = process_arr[i].service;
 	}
-
-	getchar();	
+	getchar();
+	
+	SortProcessArrByArrivalTime();
 	InitSchedMenu();
 
 	free(process_arr);
+	free(process_arr_sorted);
 }
 
 void Init(){
@@ -484,33 +493,47 @@ void InitSchedMenu(){
 	Init();
 }
 
-
 /*
- * create ready queue, sorting by arrival time
- * already sorted by name when the processes created
+ * sort by 
+ * 1_ Arrival Time
+ * 2_ Name (already sorted when processes created)
  */
-void SortReadyQueueByArrivalTime(){
-	process *sortedArr = malloc(sizeof(process) * num_of_process);	
-
+void SortProcessArrByArrivalTime(){
 	// copy array (original array is needed to print workload table)
 	for(int i = 0 ; i < num_of_process ; i++){
-		sortedArr[i] = process_arr[i];
+		process_arr_sorted[i] = process_arr[i];
 	}
 
 	// sort by arrival time
 	for(int i = 0 ; i < num_of_process - 1 ; i++){
 		for(int j = i + 1 ; j < num_of_process ; j++){
-			if(sortedArr[j].arrival < sortedArr[i].arrival){
-				process temp = sortedArr[j];
-				sortedArr[j] = sortedArr[i];
-				sortedArr[i] = temp;
+			if(process_arr_sorted[j].arrival < process_arr_sorted[i].arrival){
+				process temp = process_arr_sorted[j];
+				process_arr_sorted[j] = process_arr_sorted[i];
+				process_arr_sorted[i] = temp;
 			}
 		}
 	}
+}
 
-	// insert array into ready queue 
+/*
+ * sort by
+ * 1_ new process (just arrived)
+ * 2_ timeout process (state changed from RUN to READY)
+ *
+ * check
+ * 1_ remaining service time base on current time 
+ */
+void UpdateReadyQueue(int now, process *proc){
+	// insert new process first
 	for(int i = 0 ; i < num_of_process ; i++){
-		InsertQueue(ready_queue, &sortedArr[i]);
+		if(process_arr_sorted[i].arrival == now)
+			InsertQueue(ready_queue, &process_arr_sorted[i]);
+	}
+
+	// insert timeout process if service time remains
+	if(proc != NULL && proc->remain > 0){
+		InsertQueue(ready_queue, proc);
 	}
 }
 
@@ -542,14 +565,16 @@ void PrintResultQueue(){
 }
 
 void RunScheduling(int index){
+	// init ready queue
 	ready_queue = NewQueue();	
+	// init result queue
 	result_queue = NewQueue();	
 	
-	SortReadyQueueByArrivalTime();	
-
 	switch(index){
 		case 1:
 			FCFS();
+			break;
+		case 2:
 			break;
 		case 3:
 			SJF();
@@ -573,70 +598,89 @@ sched_process* NewSchedProcess(process *source, int start, int running){
 	return proc;
 }
 
+/*
+ * find the shortest process node in ready queue
+ */
+node* GetShortestProcNodeInReadyQueue(){
+	if(IsEmptyQueue(ready_queue))
+		return NULL;
+
+	node *curr = ready_queue->head->next;
+	process *currPros = (process *) curr->data;
+
+	node *shortest = curr;
+	while(curr != NULL && curr != ready_queue->tail){
+		if(currPros->remain < ((process *) shortest->data)->remain)
+			shortest = curr;
+		curr = curr->next;
+		currPros = (process *) curr->data;
+	}
+
+	return shortest;
+}
+
 void FCFS(){
 	// process to run
-	process *proc = malloc(sizeof(process));
-
+	process *runProc = malloc(sizeof(process));
+	
 	int now = 0;
+	
+	UpdateReadyQueue(now, NULL);
 
-	while(!IsEmptyQueue(ready_queue)){
-		// get next process from ready queue
-		DeleteQueue(ready_queue, (void **)&proc);
-
-		// wait until process arrive
-		while(now < proc->arrival){
-			now++;
+	while(now < MAX_TIME){
+		// wait for new process 
+		while(now < MAX_TIME && IsEmptyQueue(ready_queue)){
+			UpdateReadyQueue(++now, NULL);
 		}
 
-		// insert process into result queue
-		InsertQueue(result_queue, NewSchedProcess(proc, now, proc->service));
+		// finish scheduling
+		if(now == MAX_TIME)
+			break;
 
-		// run until the process finished
-		now += proc->service;
+		// get first process from ready queue 
+		DeleteQueue(ready_queue, (void **)&runProc);
+
+		// run until the process finish
+		runProc->start = now;
+		for(int i = 0 ; i < runProc->service ; i++){
+			InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
+			UpdateReadyQueue(++now, NULL);
+		}
+		runProc->remain = 0;
+		runProc->finish = now;
 	}
 }
 
 void SJF(){
 	// process to run
-	process *proc = malloc(sizeof(process));
-
+	process *runProc = malloc(sizeof(process));
+	
 	int now = 0;
 
-	while(!IsEmptyQueue(ready_queue)){
-		node *curr = ready_queue->head->next;
-		node *next = curr->next;
-		
-		process *currProc = (process *) curr->data;
-		process *nextProc = (process *) next->data;
-		
-		// wait until process arrive
-		while(now < currProc->arrival){
-			now++;
+	UpdateReadyQueue(now, NULL);
+
+	while(now < MAX_TIME){
+		// wait for new process 
+		while(IsEmptyQueue(ready_queue) && now < MAX_TIME){
+			UpdateReadyQueue(++now, NULL);
 		}
 
-		// find the shortest process among the arrived processes 
-		while(nextProc != NULL && nextProc->arrival <= now){
-			/* end of queue */
-			if(next == ready_queue->tail)
-				break;
-			
-			/* next is shorter then current */ 
-			if(currProc->service > nextProc->service){
-				curr = next;
-				currProc = nextProc;
-			}
-			
-			next = next->next;
-			nextProc = (process *) next->data;
+		// finish scheduling
+		if(now == MAX_TIME)
+			break;
+
+		// find the shortest process and delete it from queue
+		node *shortest = GetShortestProcNodeInReadyQueue();
+		DeleteQueueNode(ready_queue, shortest, (void **) &runProc);
+
+		// run until the process finish
+		runProc->start = now;
+		for(int i = 0 ; i < runProc->service ; i++){
+			InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
+			UpdateReadyQueue(++now, NULL);
 		}
-		
-		// get current process from ready queue
-		DeleteQueueNode(ready_queue, curr, (void **)&proc);
-
-		// insert the process into result queue
-		InsertQueue(result_queue, NewSchedProcess(proc, now, proc->service));
-
-		// run until the process finished
-		now += proc->service;
+		runProc->remain = 0;
+		runProc->finish = now;
 	}
 }
+

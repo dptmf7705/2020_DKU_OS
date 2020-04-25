@@ -31,6 +31,9 @@ typedef struct _process {
 	int	color;
 	int	arrival;
 	int	service;
+	int	start;
+	int	remain;
+	int	finish;
 } process;
 
 /*
@@ -41,7 +44,6 @@ typedef struct _sched_process {
 	int	color;
 	int	start;
 	int	running;
-	int	finish;
 } sched_process;
 
 typedef	struct _node {
@@ -94,6 +96,7 @@ int GetSchedTableTopAlign();
 void Init();
 void InitSchedMenu();
 void CreateProcessArr();	
+void SortProcessArrByArrivalTime();
 
 
 /*
@@ -114,9 +117,11 @@ void FreeQueue(queue *q);
  */
 sched_process* NewSchedProcess(process *source, int start, int running);
 
-void SortReadyQueueByArrivalTime();
 void RunScheduling(int num);
+void UpdateReadyQueue(int now, process *proc);
 void PrintResultQueue();
+
+node* GetShortestProcNodeInReadyQueue();
 
 
 /*
@@ -124,6 +129,7 @@ void PrintResultQueue();
  */
 void FCFS();
 void SJF();
+
 #endif /* LAB1_HEADER_H*/
 
 
