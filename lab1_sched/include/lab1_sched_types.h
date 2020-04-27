@@ -47,6 +47,9 @@ typedef struct _process {
 	color	textColor;
 	int	arrival;
 	int	service;
+	int	tickets;
+	int	stride;
+	int	strideSum;
 	int	start;
 	int	remain;
 	int	finish;
@@ -87,7 +90,7 @@ void SetCursorVisibility(bool visible);
  */
 void PrintBoard();
 void PrintProcessMenu();
-void PrintWorkloadTable();
+void PrintWorkloadTable(bool tickets);
 void PrintSchedMenu();
 void PrintSchedTable();
 void PrintSelectionBox(int index);
@@ -134,6 +137,7 @@ void RR(const int t_quantum);
 void SJF();
 void HRRN();
 void MLFQ(const MLFQ_TYPE type, const int t_quantum);
+void STRIDE();
 
 node* GetShortestProcNodeInReadyQueue();
 
