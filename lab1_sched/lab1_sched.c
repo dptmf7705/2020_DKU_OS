@@ -784,13 +784,11 @@ void IncreaseReadyQueue(){
  * find the level of queue not empty (exist process to run)
  */
 int FindNotEmptyQueueLevel(int *now){
-	int level = 0;
-
 	while(*now < MAX_TIME){
+		int level = 0;
 		while(level < ready_queue_cnt){
 			if(!IsEmptyQueue(&ready_queue[level]))
 				break;
-		
 			level++;
 		}
 
@@ -812,6 +810,11 @@ void MLFQ(const MLFQ_TYPE type, const int t_quantum){
 	while(now < MAX_TIME){
 		// find the process to run from multi queue
 		int qLevel = FindNotEmptyQueueLevel(&now);
+
+		// finish scheduling
+		if(qLevel == -1)
+			break;
+
 		DeleteQueue(&ready_queue[qLevel], (void **) &running_proc);
 
 		bool repeat;
