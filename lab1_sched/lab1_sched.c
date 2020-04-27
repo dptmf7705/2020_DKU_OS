@@ -654,7 +654,7 @@ node* GetHighestResponseRatioNode(int now){
 	return highest;
 }
 
-void schedule(process *proc, int *now, const int t_while){
+void Schedule(process *proc, int *now, const int t_while){
 	const int start = *now;	
 
 	/* process first run */
@@ -700,7 +700,7 @@ void FCFS(){
 		DeleteQueue(ready_queue, (void **) &running_proc);
 
 		// run until the process finish
-		schedule(running_proc, &now, running_proc->service);
+		Schedule(running_proc, &now, running_proc->service);
 	}
 }
 
@@ -721,7 +721,7 @@ void RR(const int t_quantum){
 
 		// run process during time quantum		
 		do
-			schedule(running_proc, &now, t_quantum);
+			Schedule(running_proc, &now, t_quantum);
 		while(running_proc->remain != 0 && 
 			IsEmptyQueue(ready_queue)); // repeat if ready queue is empty
 
@@ -748,7 +748,7 @@ void SJF(){
 		DeleteQueueNode(ready_queue, target, (void **) &running_proc);
 
 		// run until the process finish
-		schedule(running_proc, &now, running_proc->service);
+		Schedule(running_proc, &now, running_proc->service);
 	}
 }
 
@@ -769,8 +769,15 @@ void HRRN(){
 		DeleteQueueNode(ready_queue, target, (void **) &running_proc);
 
 		// run until the process finish
-		schedule(running_proc, &now, running_proc->service);
+		Schedule(running_proc, &now, running_proc->service);
 	}
+}
+
+int ready_queue_cnt;
+
+void IncreaseReadyQueue(){
+	ready_queue = realloc(ready_queue, sizeof(queue) * ++ready_queue_cnt);
+	ready_queue[ready_queue_cnt - 1] = *NewQueue();
 }
 
 /*
@@ -797,13 +804,6 @@ int FindNotEmptyQueueLevel(int *now){
 	return -1;
 }
 
-int ready_queue_cnt;
-
-void IncreaseReadyQueue(){
-	ready_queue = realloc(ready_queue, sizeof(queue) * ++ready_queue_cnt);
-	ready_queue[ready_queue_cnt - 1] = *NewQueue();
-}
-
 void MLFQ(const MLFQ_TYPE type, const int t_quantum){
 	ready_queue_cnt = 1;
 	int now = 0;
@@ -823,7 +823,7 @@ void MLFQ(const MLFQ_TYPE type, const int t_quantum){
 					Pow(t_quantum, qLevel);
 
 			// run process during time quantum 
-			schedule(running_proc, &now, t_while);
+			Schedule(running_proc, &now, t_while);
 
 			// check is there any process to run next 
 			for(int i = 0 ; i < ready_queue_cnt ; i++){
