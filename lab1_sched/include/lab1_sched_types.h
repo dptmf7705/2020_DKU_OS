@@ -23,12 +23,28 @@ typedef enum {
 	FALSE 	= 0
 } bool;
 
+typedef enum {
+	RED	= 31,
+	GRN	= 32,
+	YEL	= 33,
+	BLU	= 34,
+	MAG	= 35,
+	CYN	= 36,
+	RESET	= 0,
+	NUM_OF_COLORS	= 6
+} color;
+
+typedef enum {
+	TYPE_DEFAULT,
+	TYPE_MULTIPLE
+} MLFQ_TYPE;
+
 /*
  * process info
  */
 typedef struct _process {
 	char	name;
-	int	color;
+	color	textColor;
 	int	arrival;
 	int	service;
 	int	start;
@@ -37,15 +53,18 @@ typedef struct _process {
 } process;
 
 /*
- * process scheduling info
+ * scheduled process info
  */
 typedef struct _sched_process {
 	char	name;
-	int	color;
+	color	textColor;
 	int	start;
 	int	running;
 } sched_process;
 
+/*
+ * process queue node
+ */
 typedef	struct _node {
 	void		*data;
 	struct	_node	*next;
@@ -58,25 +77,10 @@ typedef struct _queue {
 	int	count;
 } queue;
 
-/*
- * move cursor position to (x, y)
- */
+
 void gotoxy(int x, int y);
-
-/*
- * change console output text color
- */
-void SetConsoleOutColor(int color);
-
+void SetConsoleOutColor(color color);
 void SetCursorVisibility(bool visible);
-
-int Pow(int a, int b);
-
-/*
- * get console input charactor
- */
-int getch();
-
 
 /*
  * formatting output
@@ -91,7 +95,6 @@ void EraseSelectionBox(int index);
 void FindSelectionBoxPosition(int index);
 int GetSchedTableTopAlign();
 
-
 /*
  * init menu
  */
@@ -100,6 +103,7 @@ void InitSchedMenu();
 void CreateProcessArr();	
 void SortProcessArrByArrivalTime();
 
+int getch();
 
 /*
  * managing queue
@@ -113,19 +117,14 @@ void DeleteQueuePosition(queue *q, int pos, void **data);
 void DeleteQueueNode(queue *q, node *node, void **data);
 void FreeQueue(queue *q);
 
-
 /* 
  * init scheduling 
  */
-sched_process* NewSchedProcess(process *source, int start, int running);
-
 void RunScheduling(int num);
 void UpdateReadyQueue(int now);
 void UpdateReadyQueueTimeout(process *proc);
 void PrintResultQueue();
-
-node* GetShortestProcNodeInReadyQueue();
-
+sched_process* NewSchedProcess(process *source, int start, int running);
 
 /*
  * scheduling algorithms 
@@ -134,8 +133,11 @@ void FCFS();
 void RR(const int t_quantum);
 void SJF();
 void HRRN();
-void MLFQ(const int t_quantum);
-void MLFQ_2i();
+void MLFQ(const MLFQ_TYPE type, const int t_quantum);
+
+node* GetShortestProcNodeInReadyQueue();
+
+int Pow(int a, int b);
 
 #endif /* LAB1_HEADER_H*/
 

@@ -49,18 +49,10 @@
 #define UP 65
 #define DOWN 66
 
-#define NUM_OF_COLORS 6
-#define RED 31
-#define GRN 32
-#define YEL 33
-#define BLU 34
-#define MAG 35
-#define CYN 36
-#define RESET 0
-
 #define MAX_PROCESS 6
 #define MAX_TIME 20
-#define NOT_DEFINE -1
+
+#define INITIAL_VALUE -1
 
 int num_of_process = 0;
 
@@ -70,12 +62,14 @@ process *process_arr_sorted;
 queue *ready_queue;
 queue *result_queue;
 
+process *running_proc;
+
 void gotoxy(int x, int y){
 	printf("\033[%d;%dH", y + 1, x + 1);
 }
 
-void SetConsoleOutColor(int color){
-	printf("\033[%d;1m", color);
+void SetConsoleOutColor(color c){
+	printf("\033[%d;1m", c);
 }
 
 void SetCursorVisibility(bool visible){
@@ -164,7 +158,7 @@ void PrintWorkloadTable(){
 		puts("│                │                │                │");
 		gotoxy(TABLE_LEFT_ALIGN + 8, posY);
 		printf("%c", process_arr[i].name);
-		if(process_arr[i].arrival != NOT_DEFINE && process_arr[i].service != NOT_DEFINE){
+		if(process_arr[i].arrival != INITIAL_VALUE && process_arr[i].service != INITIAL_VALUE){
 	 		gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH + 8, posY);
 			printf("%d", process_arr[i].arrival);
 	 		gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH * 2 + 8, posY);
@@ -225,7 +219,7 @@ void PrintSchedTable(){
 		gotoxy(TABLE_LEFT_ALIGN, ++posY);
 		puts("│                             │                             │                             │                             │");	
 		gotoxy(TABLE_LEFT_ALIGN - 2, posY);
-		SetConsoleOutColor(process_arr[i].color);
+		SetConsoleOutColor(process_arr[i].textColor);
 		printf("%c", process_arr[i].name);
 		SetConsoleOutColor(RESET);
 	}
@@ -382,23 +376,18 @@ void FreeQueue(queue *q){
 	free(q);
 }
 
-
-const int colors[NUM_OF_COLORS] = {
-	RED, GRN, YEL, BLU, MAG, CYN
-};
-
 void CreateProcessArr(){	
 	process_arr = malloc(sizeof(process) * num_of_process);	
 	process_arr_sorted = malloc(sizeof(process) * num_of_process);	
-	
+
 	for(int i = 0 ; i < num_of_process ; i++){
 		process_arr[i].name = 'A' + i;
-		process_arr[i].color = colors[i % NUM_OF_COLORS];
-		process_arr[i].arrival = NOT_DEFINE;
-		process_arr[i].service = NOT_DEFINE;
-		process_arr[i].start = NOT_DEFINE;
-		process_arr[i].remain = NOT_DEFINE;
-		process_arr[i].finish = NOT_DEFINE;
+		process_arr[i].textColor = RED + (i % NUM_OF_COLORS);
+		process_arr[i].arrival = INITIAL_VALUE;
+		process_arr[i].service = INITIAL_VALUE;
+		process_arr[i].start = INITIAL_VALUE;
+		process_arr[i].remain = INITIAL_VALUE;
+		process_arr[i].finish = INITIAL_VALUE;
 	}
 
 	SetCursorVisibility(true);
@@ -549,15 +538,15 @@ void PrintResultQueue(){
 		
 		int now = proc->start;
 		int index = proc->name - (int) 'A';
-		
-		while(now < (proc->start + proc->running)){
+
+		while(now < proc->start + proc->running){		
 			gotoxy(TABLE_LEFT_ALIGN + (now * LEFT_SPACE), TOP_ALIGN + (TABLE_HEIGHT * index));
 			printf("│");
-			SetConsoleOutColor(proc->color);
+			SetConsoleOutColor(proc->textColor);
 			printf("  %c  ", proc->name);
 			SetConsoleOutColor(RESET);
 			printf("│");
-			
+		
 			now++;
 		}
 	}
@@ -568,7 +557,9 @@ void RunScheduling(int index){
 	ready_queue = NewQueue();	
 	// init result queue
 	result_queue = NewQueue();	
-	
+	// init running process
+	running_proc = malloc(sizeof(process));
+
 	SortProcessArrByArrivalTime();
 	
 	switch(index){
@@ -585,10 +576,10 @@ void RunScheduling(int index){
 			HRRN();
 			break;
 		case 5:
-			MLFQ(1);
+			MLFQ(TYPE_DEFAULT, 1);
 			break;
 		case 6:
-			MLFQ_2i();
+			MLFQ(TYPE_MULTIPLE, 2);
 			break;
 	}
 
@@ -602,7 +593,7 @@ sched_process* NewSchedProcess(process *source, int start, int running){
 	sched_process *proc = malloc(sizeof(sched_process));
 	
 	proc->name = source->name;
-	proc->color = source->color;
+	proc->textColor = source->textColor;
 	proc->start = start;
 	proc->running = running;
 
@@ -663,149 +654,147 @@ node* GetHighestResponseRatioNode(int now){
 	return highest;
 }
 
+void schedule(process *proc, int *now, const int t_while){
+	const int start = *now;	
+
+	/* process first run */
+	if(proc->start == INITIAL_VALUE)
+		proc->start = start;
+	
+	int running = 0;
+	while(running < t_while){
+		proc->remain -= 1;
+		UpdateReadyQueue(++(*now));
+
+		running++;
+
+		/* process finish */
+		if(proc->remain == 0){
+			proc->finish = *now;
+			break;
+		}
+	}
+
+	InsertQueue(result_queue, NewSchedProcess(proc, start, running));
+}
+
+void WaitIfReadyQueueEmpty(int *now){
+	while(*now < MAX_TIME && IsEmptyQueue(ready_queue)){
+		UpdateReadyQueue(++(*now));
+	}
+}
+
 void FCFS(){
-	// process to run
-	process *runProc = malloc(sizeof(process));
-	
 	int now = 0;
-	
 	UpdateReadyQueue(now);
 
 	while(now < MAX_TIME){
 		// wait for new process 
-		while(now < MAX_TIME && IsEmptyQueue(ready_queue)){
-			UpdateReadyQueue(++now);
-		}
+		WaitIfReadyQueueEmpty(&now);
 
 		// finish scheduling
 		if(now == MAX_TIME)
 			break;
 
 		// get first process from ready queue 
-		DeleteQueue(ready_queue, (void **)&runProc);
+		DeleteQueue(ready_queue, (void **) &running_proc);
 
 		// run until the process finish
-		runProc->start = now;
-		for(int i = 0 ; i < runProc->service ; i++){
-			InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
-			UpdateReadyQueue(++now);
-		}
-		runProc->remain = 0;
-		runProc->finish = now;
+		schedule(running_proc, &now, running_proc->service);
 	}
 }
 
 void RR(const int t_quantum){
-	// process to run
-	process *runProc = malloc(sizeof(process));
-
 	int now = 0;
-
 	UpdateReadyQueue(now);
 
 	while(now < MAX_TIME){
 		// wait for new process
-		while(IsEmptyQueue(ready_queue) && now < MAX_TIME){
-			UpdateReadyQueue(++now);
-		}
+		WaitIfReadyQueueEmpty(&now);
 
 		// finish scheduling
 		if(now == MAX_TIME)
 			break;
 
 		// get first process from ready queue 
-		DeleteQueue(ready_queue, (void **) &runProc);
+		DeleteQueue(ready_queue, (void **) &running_proc);
 
-		/* process first run */
-		if(runProc->start == NOT_DEFINE)
-			runProc->start = now;
+		// run process during time quantum		
+		do
+			schedule(running_proc, &now, t_quantum);
+		while(running_proc->remain != 0 && 
+			IsEmptyQueue(ready_queue)); // repeat if ready queue is empty
 
-		do {
-			// run process during time quantum
-			for(int i = 0 ; i < t_quantum ; i++){
-				runProc->remain -= 1;	
-				InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
-				UpdateReadyQueue(++now);
-
-				/* process finish */
-				if(runProc->remain == 0)
-					break;
-			}
-		} while(runProc->remain != 0 && 
-			IsEmptyQueue(ready_queue)); // repeat if queue empty
-
-		/* service time remains */
-		if(runProc->remain != 0)
-			InsertQueue(ready_queue, runProc);
-		else 
-			runProc->finish = now;
+		/* insert the process into ready queue if service time remains */
+		if(running_proc->remain != 0)
+			InsertQueue(ready_queue, running_proc);
 	}
 }
 
 void SJF(){
-	// process to run
-	process *runProc = malloc(sizeof(process));
-	
 	int now = 0;
-
 	UpdateReadyQueue(now);
 
 	while(now < MAX_TIME){
 		// wait for new process 
-		while(IsEmptyQueue(ready_queue) && now < MAX_TIME){
-			UpdateReadyQueue(++now);
-		}
+		WaitIfReadyQueueEmpty(&now);
 
 		// finish scheduling
 		if(now == MAX_TIME)
 			break;
 
 		// find the shortest process and delete it from queue
-		node *shortest = GetShortestProcessNode();
-		DeleteQueueNode(ready_queue, shortest, (void **) &runProc);
+		node *target = GetShortestProcessNode();
+		DeleteQueueNode(ready_queue, target, (void **) &running_proc);
 
 		// run until the process finish
-		runProc->start = now;
-		for(int i = 0 ; i < runProc->service ; i++){
-			InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
-			UpdateReadyQueue(++now);
-		}
-		runProc->remain = 0;
-		runProc->finish = now;
+		schedule(running_proc, &now, running_proc->service);
 	}
 }
 
 void HRRN(){
-	// process to run
-	process *runProc = malloc(sizeof(process));
-	
 	int now = 0;
-
 	UpdateReadyQueue(now);
 
 	while(now < MAX_TIME){
 		// wait for new process 
-		while(IsEmptyQueue(ready_queue) && now < MAX_TIME){
-			UpdateReadyQueue(++now);
-		}
+		WaitIfReadyQueueEmpty(&now);
 
 		// finish scheduling
 		if(now == MAX_TIME)
 			break;
 
 		// find the shortest process and delete it from queue
-		node *highest = GetHighestResponseRatioNode(now);
-		DeleteQueueNode(ready_queue, highest, (void **) &runProc);
+		node *target = GetHighestResponseRatioNode(now);
+		DeleteQueueNode(ready_queue, target, (void **) &running_proc);
 
 		// run until the process finish
-		runProc->start = now;
-		for(int i = 0 ; i < runProc->service ; i++){
-			InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
-			UpdateReadyQueue(++now);
-		}
-		runProc->remain = 0;
-		runProc->finish = now;
+		schedule(running_proc, &now, running_proc->service);
 	}
+}
+
+/*
+ * find the level of queue not empty (exist process to run)
+ */
+int FindNotEmptyQueueLevel(int *now){
+	int level = 0;
+
+	while(*now < MAX_TIME){
+		while(level < ready_queue_cnt){
+			if(!IsEmptyQueue(&ready_queue[level]))
+				break;
+		
+			level++;
+		}
+
+		/* queue is not empty */
+		if(level < ready_queue_cnt)
+			return level;
+
+		UpdateReadyQueue(++(*now));
+	}
+
+	return -1;
 }
 
 int ready_queue_cnt;
@@ -815,133 +804,45 @@ void IncreaseReadyQueue(){
 	ready_queue[ready_queue_cnt - 1] = *NewQueue();
 }
 
-
-void MLFQ(const int t_quantum){
-	// process to run
-	process *runProc = malloc(sizeof(process));
-
+void MLFQ(const MLFQ_TYPE type, const int t_quantum){
 	ready_queue_cnt = 1;
 	int now = 0;
-
 	UpdateReadyQueue(now);
 
 	while(now < MAX_TIME){
-		// find the process to run
-		int queLevel = 0;
-		for( ; queLevel < ready_queue_cnt ; queLevel++){
-			if(!IsEmptyQueue(&ready_queue[queLevel]))
-				break;
-		}
-
-		/* all queue empty */
-		if(queLevel == ready_queue_cnt){
-			UpdateReadyQueue(++now);
-			continue;
-		}
-
-		DeleteQueue(&ready_queue[queLevel], (void **) &runProc);
-
-		/* process first run */
-		if(runProc->start == NOT_DEFINE)
-			runProc->start = now;
+		// find the process to run from multi queue
+		int qLevel = FindNotEmptyQueueLevel(&now);
+		DeleteQueue(&ready_queue[qLevel], (void **) &running_proc);
 
 		bool repeat;
 		do{
 			repeat = true;
+
+			int t_while = (type == TYPE_DEFAULT) ? 
+					t_quantum : 
+					Pow(t_quantum, qLevel);
+
 			// run process during time quantum 
-			for(int i = 0 ; i < t_quantum ; i++){
-				runProc->remain -= 1;
-				InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
-				UpdateReadyQueue(++now);
+			schedule(running_proc, &now, t_while);
 
-				/* process finish */
-				if(runProc->remain == 0)
-					break;
-			}
-
-			// find the process to run next 
+			// check is there any process to run next 
 			for(int i = 0 ; i < ready_queue_cnt ; i++){
-				/* process exist */
 				if(!IsEmptyQueue(&ready_queue[i])){
 					repeat = false;
 					break;
 				}
 			}
-		} while(runProc->remain != 0 && repeat);
+		} while(running_proc->remain != 0 && repeat); // repeat if queue empty
 
-		/* service time remains */
-		if(runProc->remain != 0){
-			/* need to increase the num of queue */
-			if(queLevel == ready_queue_cnt - 1){
+		/* insert the process if service time remains */
+		if(running_proc->remain != 0){
+			/* check if we need to increase the num of queue */
+			if(qLevel == ready_queue_cnt - 1){
 				IncreaseReadyQueue();
 			}
-			InsertQueue(&ready_queue[queLevel + 1], runProc);
-		} else 
-			runProc->finish = now;
+			// insert process into the next level of queue
+			InsertQueue(&ready_queue[qLevel + 1], running_proc);
+		}
 	}
 }
 
-void MLFQ_2i(){
-	// process to run
-	process *runProc = malloc(sizeof(process));
-
-	ready_queue_cnt = 1;
-	int now = 0;
-
-	UpdateReadyQueue(now);
-
-	while(now < MAX_TIME){
-		// find the process to run
-		int queLevel = 0;
-		for( ; queLevel < ready_queue_cnt ; queLevel++){
-			if(!IsEmptyQueue(&ready_queue[queLevel]))
-				break;
-		}
-
-		/* all queue empty */
-		if(queLevel == ready_queue_cnt){
-			UpdateReadyQueue(++now);
-			continue;
-		}
-
-		DeleteQueue(&ready_queue[queLevel], (void **) &runProc);
-
-		/* process first run */
-		if(runProc->start == NOT_DEFINE)
-			runProc->start = now;
-
-		bool repeat;
-		do{
-			repeat = true;
-			// run process during time quantum 
-			for(int i = 0 ; i < Pow(2, queLevel) ; i++){
-				runProc->remain -= 1;
-				InsertQueue(result_queue, NewSchedProcess(runProc, now, 1));
-				UpdateReadyQueue(++now);
-
-				/* process finish */
-				if(runProc->remain == 0)
-					break;
-			}
-
-			// find the process to run next 
-			for(int i = 0 ; i < ready_queue_cnt ; i++){
-				/* process exist */
-				if(!IsEmptyQueue(&ready_queue[i])){
-					repeat = false;
-					break;
-				}
-			}
-		} while(runProc->remain != 0 && repeat);
-
-		/* service time remains */
-		if(runProc->remain != 0){
-			/* need to increase the num of queue */
-			if(queLevel == ready_queue_cnt - 1){
-				IncreaseReadyQueue();
-			}
-			InsertQueue(&ready_queue[queLevel + 1], runProc);
-		} else 
-			runProc->finish = now;
-	}
-}
