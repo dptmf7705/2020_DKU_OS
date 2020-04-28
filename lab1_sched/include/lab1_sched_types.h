@@ -39,6 +39,12 @@ typedef enum {
 	TYPE_MULTIPLE
 } MLFQ_TYPE;
 
+typedef enum {
+	VIEW_TYPE_DEFAULT,
+	VIEW_TYPE_PERIOD,
+	VIEW_TYPE_TICKET
+} WORKLOAD_VIEW_TYPE;
+
 /*
  * process info
  */
@@ -47,9 +53,8 @@ typedef struct _process {
 	color	textColor;
 	int	arrival;
 	int	service;
+	int	period;
 	int	tickets;
-	int	stride;
-	int	strideSum;
 	int	start;
 	int	remain;
 	int	finish;
@@ -81,16 +86,12 @@ typedef struct _queue {
 } queue;
 
 
-void gotoxy(int x, int y);
-void SetConsoleOutColor(color color);
-void SetCursorVisibility(bool visible);
-
 /*
  * formatting output
  */
 void PrintBoard();
 void PrintProcessMenu();
-void PrintWorkloadTable(bool tickets);
+void PrintWorkloadTable();
 void PrintSchedMenu();
 void PrintSchedTable();
 void PrintSelectionBox(int index);
@@ -105,8 +106,6 @@ void Init();
 void InitSchedMenu();
 void CreateProcessArr();	
 void SortProcessArrByArrivalTime();
-
-int getch();
 
 /*
  * managing queue
@@ -125,6 +124,8 @@ void FreeQueue(queue *q);
  */
 void RunScheduling(int num);
 void UpdateReadyQueue(int now);
+void UpdatePeriodReadyQueue(int now);
+void WaitIfReadyQueueEmpty(int *now);
 void UpdateReadyQueueTimeout(process *proc);
 void PrintResultQueue();
 sched_process* NewSchedProcess(process *source, int start, int running);
@@ -137,11 +138,24 @@ void RR(const int t_quantum);
 void SJF();
 void HRRN();
 void MLFQ(const MLFQ_TYPE type, const int t_quantum);
+void RM();
+
+
+int GetLcmFromReadyQueue();
+int GetStrideSum();
 void STRIDE();
 
 node* GetShortestProcNodeInReadyQueue();
 
+void gotoxy(int x, int y);
+void SetConsoleOutColor(color color);
+void SetCursorVisibility(bool visible);
+
+int getch();
+
 int Pow(int a, int b);
+int GCD(int a, int b);
+int LCM(int a, int b);
 
 #endif /* LAB1_HEADER_H*/
 
