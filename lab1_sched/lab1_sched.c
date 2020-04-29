@@ -64,10 +64,11 @@ const char SCHEDULING[8][25] = {
 	"SPN(SJF)",
 	"HRRN",
 	"MLFQ",
-	"MLFQ (t_quantum=2^i)",
+	"MLFQ (tquantum=2^i)",
 	"RM(Rate Monotonic)",
 	"STRIDE"
 };
+
 
 int num_of_process = 0;
 int ready_queue_cnt;
@@ -90,7 +91,6 @@ void PrintBoard(){
 		puts("┃                                                                                                                                                                                           ┃");
 	}
 	puts("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛");
-	
 	gotoxy(TEXT_LEFT_ALIGN + 30, LINE_SPACE);
         printf("SCHEDULING SIMULATOR by YESEUL LEE");
       	printf("  (2020-1 OPERATING SYSTEM LAB1)");	
@@ -114,10 +114,10 @@ void PrintProcessMenu(){
 }
 
 void PrintWorkloadTable(){
-	int posY = TABLE_TOP_ALIGN - 1;
+	int posY = GetWorkloadPosY() - 1;
 
 	gotoxy(TABLE_LEFT_ALIGN, posY);
-	puts("  Workload  ");
+	puts(" ◆  Workload  ");
 
 	switch(view_type){
 		case VIEW_TYPE_DEFAULT:
@@ -200,12 +200,12 @@ void PrintSchedMenu(){
 	SetConsoleOutColor(RESET);
 }
 
-int GetSchedTableTopAlign(){
-	return TABLE_TOP_ALIGN + ((num_of_process + 2) * TABLE_HEIGHT) + LINE_SPACE + 2;
+int GetWorkloadPosY(){
+	return TABLE_TOP_ALIGN + ((num_of_process + 2) * TABLE_HEIGHT);
 }
 
 void PrintSchedTable(){
-	int posY = GetSchedTableTopAlign();
+	int posY = TABLE_TOP_ALIGN - 1;
 
 	gotoxy(TABLE_LEFT_ALIGN, posY);
 	puts("0                             5                             10                            15                            20");
@@ -415,9 +415,8 @@ void Init(){
 
 void InitSchedMenu(){
 	system("clear");
-	PrintBoard();
-	PrintWorkloadTable();
 	PrintSchedMenu();
+	PrintSchedTable();
 
 	int menuIndex = 1;
         int key;
@@ -481,12 +480,16 @@ void CreateProcessArr(){
 	}
 
 	PrintWorkloadTable();
+	PrintSchedTable();
+
+	int posX = TABLE_LEFT_ALIGN + TABLE_MARGIN;
+	int posY = GetWorkloadPosY() + TABLE_HEIGHT * 2 - 1;
 
 	SetCursorVisibility(true);
 	for(int i = 0 ; i < num_of_process ; i++){
-	 	gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH + TABLE_MARGIN, TABLE_TOP_ALIGN + (i * TABLE_HEIGHT) + 3);
+	 	gotoxy(posX + TABLE_WIDTH, posY + (i * TABLE_HEIGHT));
 		scanf("%d", &process_arr[i].arrival);
-	 	gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH * 2 + TABLE_MARGIN, TABLE_TOP_ALIGN + (i * TABLE_HEIGHT) + 3);
+	 	gotoxy(posX + TABLE_WIDTH * 2, posY + (i * TABLE_HEIGHT));
 		scanf("%d", &process_arr[i].service);
 	}
 	getchar();
@@ -499,7 +502,7 @@ void CreateProcessArr(){
 
 void InputWorkload(){
 	int posX = TABLE_LEFT_ALIGN + TABLE_WIDTH * 3 + TABLE_MARGIN;
-	int posY = TABLE_TOP_ALIGN + 3;
+	int posY = GetWorkloadPosY() + 3;
 
 	SetCursorVisibility(true);
 	for(int i = 0 ; i < num_of_process ; i++){
@@ -511,10 +514,8 @@ void InputWorkload(){
 }
 
 void PrintResultQueue(){
-	const int TOP_ALIGN = GetSchedTableTopAlign() + 2;
+	int posY = TABLE_TOP_ALIGN + 1;
 	const int LEFT_SPACE = 6;
-
-	PrintSchedTable();
 
 	sched_process *proc = malloc(sizeof(sched_process));
 
@@ -526,7 +527,7 @@ void PrintResultQueue(){
 		int index = proc->name - (int) 'A';
 
 		while(now < MAX_TIME && now < proc->start + proc->running){		
-			gotoxy(TABLE_LEFT_ALIGN + (now * LEFT_SPACE), TOP_ALIGN + (TABLE_HEIGHT * index));
+			gotoxy(TABLE_LEFT_ALIGN + (now * LEFT_SPACE), posY + (TABLE_HEIGHT * index));
 			printf("│");
 			SetConsoleOutColor(proc->textColor);
 			printf("  %c  ", proc->name);
@@ -540,23 +541,23 @@ void PrintResultQueue(){
 
 void PrintResultMetrics(){
 	int posX = METRICS_LEFT_ALIGN;
-	int posY = TABLE_TOP_ALIGN - 1;
+	int posY = GetWorkloadPosY() - 1;
 
 	gotoxy(posX, posY);
-	puts("  Result Metrics  ");
+	puts(" ◆  Result Metrics  ");
 
 	gotoxy(posX, ++posY);
-	puts("┌────────────┬────────────┬────────────┬────────────┐");
+	puts("┌────────────┬────────────┬────────────┬────────────┬────────────┐");
 	gotoxy(posX, ++posY);
-	puts("│ First Run  │ Completion │ Turnaround │  Response  │");
+	puts("│  Process   │  FirstRun  │ Completion │ Turnaround │  Response  │");
 
 	int totalT = 0, totalR = 0;
 
 	for(int i = 0 ; i < num_of_process ; i++){
 		gotoxy(posX, ++posY);
-		puts("├────────────┼────────────┼────────────┼────────────┤");
+		puts("├────────────┼────────────┼────────────┼────────────┼────────────┤");
 		gotoxy(posX, ++posY);
-		puts("│            │            │            │            │");
+		puts("│            │            │            │            │            │");
 
 		int arrival = process_arr[i].arrival;
 		int start = process_arr[i].start;
@@ -570,39 +571,39 @@ void PrintResultMetrics(){
 		totalT += turnaround;
 		totalR += response;
 
+		SetConsoleOutColor(RED + (i % NUM_OF_COLORS));
 		gotoxy(posX + TABLE_MARGIN, posY);
+		printf("%c", process_arr[i].name);
+		gotoxy(posX + TABLE_MARGIN + TABLE_WIDTH, posY);
 		printf("%d", start);
-	 	gotoxy(posX + TABLE_WIDTH + TABLE_MARGIN, posY);
+	 	gotoxy(posX + TABLE_MARGIN + TABLE_WIDTH * 2, posY);
 		printf("%d", finish);
-	 	gotoxy(posX + TABLE_WIDTH * 2 + TABLE_MARGIN, posY);
+	 	gotoxy(posX + TABLE_MARGIN + TABLE_WIDTH * 3, posY);
 		printf("%d", turnaround);
-	 	gotoxy(posX + TABLE_WIDTH * 3 + TABLE_MARGIN, posY);
+	 	gotoxy(posX + TABLE_MARGIN + TABLE_WIDTH * 4, posY);
 		printf("%d", response);
+		SetConsoleOutColor(RESET);
 	}
 
 	gotoxy(posX, ++posY); posY++;
-	puts("└────────────┴────────────┴────────────┴────────────┘");
-	gotoxy(posX + 2, ++posY); posY++;
-	SetConsoleOutColor(BLU);
-	printf("Average Turnaround Time = %0.3f\n", totalT / (float) num_of_process);
-	gotoxy(posX + 2, ++posY);
-	printf("Average Response Time   = %0.3f\n", totalR / (float) num_of_process);
-	SetConsoleOutColor(RESET);
+	puts("└────────────┴────────────┴────────────┴────────────┴────────────┘");
+	gotoxy(posX, ++posY); posY++;
+	printf(" ◆  Average Turnaround Time = %0.3f\n", totalT / (float) num_of_process);
+	gotoxy(posX, ++posY);
+	printf(" ◆  Average Response Time   = %0.3f\n", totalR / (float) num_of_process);
 }
 
 void PrintSchedulingTitle(int index){
 	int posX = TABLE_LEFT_ALIGN;
-	int posY = GetSchedTableTopAlign() - 2;
+	int posY = TABLE_TOP_ALIGN - 3;
 	
 	gotoxy(posX, posY);
-	SetConsoleOutColor(BLU);
-	printf("%-40s", SCHEDULING[index - 1]);
-	SetConsoleOutColor(RESET);
+	printf("◆  %-40s", SCHEDULING[index - 1]);
 }
 
 int InputTimeQuantum(){
 	int posX = TABLE_LEFT_ALIGN + 20;
-	int posY = GetSchedTableTopAlign() - 2;
+	int posY = TABLE_TOP_ALIGN - 3;
 	
 	int tquantum;
 
@@ -635,6 +636,7 @@ void RunScheduling(int index){
 
 	view_type = VIEW_TYPE_DEFAULT;
 	PrintWorkloadTable();
+	PrintSchedTable();
 	
 	switch(index){
 		case 1:

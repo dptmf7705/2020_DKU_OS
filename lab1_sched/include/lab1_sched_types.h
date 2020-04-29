@@ -97,7 +97,7 @@ void PrintSchedTable();
 void PrintSelectionBox(int index);
 void EraseSelectionBox(int index);
 void FindSelectionBoxPosition(int index);
-int GetSchedTableTopAlign();
+int GetWorkloadPosY();
 
 /*
  * init menu
