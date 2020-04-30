@@ -41,7 +41,7 @@
 #define TABLE_WIDTH 13
 #define TABLE_HEIGHT 2
 #define TABLE_MARGIN 6
-#define METRICS_LEFT_ALIGN 110
+#define METRICS_LEFT_ALIGN 105
 
 #define EXIT 6
 #define BACK_TO_MAIN 9
@@ -54,37 +54,35 @@
 
 #define MAX_PROCESS 6
 #define MAX_TIME 20
-#define MAX_SCHED_TIME 100
 
 #define INITIAL_VALUE -1
 
-const char SCHEDULING[8][25] = {
+const char SCHEDULING_NAME[8][20] = {
 	"FCFS(FIFO)",
 	"RR(Round-Robin)",
 	"SPN(SJF)",
 	"HRRN",
 	"MLFQ",
-	"MLFQ (t_quantum=2^i)",
+	"MLFQ (tquantum=2^i)",
 	"RM(Rate Monotonic)",
 	"STRIDE"
 };
 
-int num_of_process = 0;
-int ready_queue_cnt;
+int num_of_proc;
+int ready_q_cnt;
 
-WORKLOAD_VIEW_TYPE view_type = VIEW_TYPE_DEFAULT;
+workload_type w_type = WORKLOAD_DEFAULT;
 
-process *process_arr;
+process *proc_arr;
 
-queue *ready_queue;
-queue *result_queue;
+queue *ready_q;
+queue *result_q;
 
-process *running_proc;
+process *run_proc;
 
-
-void PrintBoard(){
+void printBoard(){
 	gotoxy(0, 0);
-	SetConsoleOutColor(RESET);
+	setColor(RESET);
 	puts("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓");
 	for(int i = 0 ; i < BOARD_HEIGHT ; i++){
 		puts("┃                                                                                                                                                                                           ┃");
@@ -96,11 +94,11 @@ void PrintBoard(){
       	printf("  (2020-1 OPERATING SYSTEM LAB1)");	
 }
 
-void PrintProcessMenu(){
+void printProcMenu(){
 	gotoxy(TEXT_LEFT_ALIGN - 2, TEXT_TOP_ALIGN);
-	SetConsoleOutColor(BLU);
+	setColor(BLU);
 	printf("Choose the number of process");
-	SetConsoleOutColor(RESET);
+	setColor(RESET);
 
 	for(int i = 2 ; i <= MAX_PROCESS ; i++){
 		gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN + LINE_SPACE * (i - 1));
@@ -108,120 +106,122 @@ void PrintProcessMenu(){
 	}
 
 	gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN + LINE_SPACE * 6);
-	SetConsoleOutColor(RED);
+	setColor(RED);
 	printf("EXIT");
-	SetConsoleOutColor(RESET);
+	setColor(RESET);
 }
 
-void PrintWorkloadTable(){
-	int posY = TABLE_TOP_ALIGN - 1;
+void printWorkloadTable(){
+	int posX = TABLE_LEFT_ALIGN;
+	int posY = getTablePosY() - 1;
 
-	gotoxy(TABLE_LEFT_ALIGN, posY);
-	puts("  Workload  ");
+	gotoxy(posX, posY);
+	puts(" ◆  Workload  ");
 
-	switch(view_type){
-		case VIEW_TYPE_DEFAULT:
-			gotoxy(TABLE_LEFT_ALIGN, ++posY);
+	switch(w_type){
+		case WORKLOAD_DEFAULT:
+			gotoxy(posX, ++posY);
 			puts("┌────────────┬────────────┬────────────┐            ");
-			gotoxy(TABLE_LEFT_ALIGN, ++posY);
+			gotoxy(posX, ++posY);
 			puts("│  Process   │  Arrival   │  Service   │                ");
 			break;
-		case VIEW_TYPE_PERIOD:
-			gotoxy(TABLE_LEFT_ALIGN, ++posY);
+		case WORKLOAD_PERIOD:
+			gotoxy(posX, ++posY);
 			puts("┌────────────┬────────────┬────────────┬───────────┐");
-			gotoxy(TABLE_LEFT_ALIGN, ++posY);
+			gotoxy(posX, ++posY);
 			puts("│  Process   │  Arrival   │  Service   │  Period   │");
 			break;
-		case VIEW_TYPE_TICKET:
-			gotoxy(TABLE_LEFT_ALIGN, ++posY);
+		case WORKLOAD_TICKET:
+			gotoxy(posX, ++posY);
 			puts("┌────────────┬────────────┬────────────┬───────────┐");
-			gotoxy(TABLE_LEFT_ALIGN, ++posY);
+			gotoxy(posX, ++posY);
 			puts("│  Process   │  Arrival   │  Service   │  Tickets  │");
 			break;
 	}
 
-	for(int i = 0 ; i < num_of_process ; i++){
-		if(view_type == VIEW_TYPE_DEFAULT){
-			gotoxy(TABLE_LEFT_ALIGN, ++posY);
+	for(int i = 0 ; i < num_of_proc ; i++){
+		if(w_type == WORKLOAD_DEFAULT){
+			gotoxy(posX, ++posY);
 			puts("├────────────┼────────────┼────────────┤            ");
-			gotoxy(TABLE_LEFT_ALIGN, ++posY);
+			gotoxy(posX, ++posY);
 			puts("│            │            │            │            ");
 		} else {
-			gotoxy(TABLE_LEFT_ALIGN, ++posY);
+			gotoxy(posX, ++posY);
 			puts("├────────────┼────────────┼────────────┼───────────┤");
-			gotoxy(TABLE_LEFT_ALIGN, ++posY);
+			gotoxy(posX, ++posY);
 			puts("│            │            │            │           │");
 		}
 
-		gotoxy(TABLE_LEFT_ALIGN + TABLE_MARGIN, posY);
-		printf("%c", process_arr[i].name);
+		posX += TABLE_MARGIN;
 
-		if(process_arr[i].arrival != INITIAL_VALUE && process_arr[i].service != INITIAL_VALUE){
-	 		gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH + TABLE_MARGIN, posY);
-			printf("%d", process_arr[i].arrival);
-	 		gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH * 2 + TABLE_MARGIN, posY);
-			printf("%d", process_arr[i].service);
+		gotoxy(posX, posY);
+		printf("%c", proc_arr[i].name);
+
+		if(proc_arr[i].arrival != INITIAL_VALUE && proc_arr[i].service != INITIAL_VALUE){
+	 		gotoxy(posX + TABLE_WIDTH, posY);
+			printf("%d", proc_arr[i].arrival);
+	 		gotoxy(posX + TABLE_WIDTH * 2, posY);
+			printf("%d", proc_arr[i].service);
 		}
 
-		gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH * 3 + TABLE_MARGIN, posY);
-		if(view_type == VIEW_TYPE_PERIOD && process_arr[i].period != INITIAL_VALUE)
-			printf("%d", process_arr[i].period);
-		else if(view_type == VIEW_TYPE_TICKET && process_arr[i].tickets != INITIAL_VALUE)
-			printf("%d", process_arr[i].tickets);
+		gotoxy(posX + TABLE_WIDTH * 3, posY);
+		if(w_type == WORKLOAD_PERIOD && proc_arr[i].period != INITIAL_VALUE)
+			printf("%d", proc_arr[i].period);
+		else if(w_type == WORKLOAD_TICKET && proc_arr[i].tickets != INITIAL_VALUE)
+			printf("%d", proc_arr[i].tickets);
+
+		posX -=TABLE_MARGIN;
 	}
 
-	gotoxy(TABLE_LEFT_ALIGN, ++posY);
-	if(view_type == VIEW_TYPE_DEFAULT)
+	gotoxy(posX, ++posY);
+	if(w_type == WORKLOAD_DEFAULT)
 		puts("└────────────┴────────────┴────────────┘            ");
 	else 
 		puts("└────────────┴────────────┴────────────┴───────────┘");
 
 }
 
-void PrintSchedMenu(){
-	system("clear");
-	PrintBoard();
-	PrintWorkloadTable(VIEW_TYPE_DEFAULT);
-
+void printSchedMenu(){
 	gotoxy(TEXT_LEFT_ALIGN -2, TEXT_TOP_ALIGN);
-	SetConsoleOutColor(BLU);
+	setColor(BLU);
 	printf("Choose Scheduling Algorithm");
-	SetConsoleOutColor(RESET);
+	setColor(RESET);
 
 	int i = 0;
 	while(i < BACK_TO_MAIN - 1){
 		gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN + LINE_SPACE * (i + 1));
-		printf("%s", SCHEDULING[i++]);
+		printf("%s", SCHEDULING_NAME[i++]);
 	}
 
 	gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN + LINE_SPACE * ++i);
-	SetConsoleOutColor(RED);
+	setColor(RED);
 	printf("BACK TO MAIN");
-	SetConsoleOutColor(RESET);
+	setColor(RESET);
 }
 
-int GetSchedTableTopAlign(){
-	return TABLE_TOP_ALIGN + ((num_of_process + 2) * TABLE_HEIGHT) + LINE_SPACE + 2;
+int getTablePosY(){
+	return TABLE_TOP_ALIGN + (num_of_proc + 2) * TABLE_HEIGHT;
 }
 
-void PrintSchedTable(){
-	int posY = GetSchedTableTopAlign();
+void printSchedTable(){
+	int posX = TABLE_LEFT_ALIGN;
+	int posY = TABLE_TOP_ALIGN - 1;
 
-	gotoxy(TABLE_LEFT_ALIGN, posY);
+	gotoxy(posX, posY);
 	puts("0                             5                             10                            15                            20");
 
-	for(int i = 0 ; i < num_of_process ; i++){
-		gotoxy(TABLE_LEFT_ALIGN, ++posY);
+	for(int i = 0 ; i < num_of_proc ; i++){
+		gotoxy(posX, ++posY);
 		puts("├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤");
-		gotoxy(TABLE_LEFT_ALIGN, ++posY);
+		gotoxy(posX, ++posY);
 		puts("│                             │                             │                             │                             │");	
-		gotoxy(TABLE_LEFT_ALIGN - 2, posY);
-		SetConsoleOutColor(process_arr[i].textColor);
-		printf("%c", process_arr[i].name);
-		SetConsoleOutColor(RESET);
+		gotoxy(posX - 2, posY);
+		setColor(proc_arr[i].color);
+		printf("%c", proc_arr[i].name);
+		setColor(RESET);
 	}
 	
-	gotoxy(TABLE_LEFT_ALIGN, ++posY);
+	gotoxy(posX, ++posY);
 	puts("├─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┤");
 }
 
@@ -231,13 +231,13 @@ void PrintSchedTable(){
  */
 int pos[2] = {0, 0};
 
-void FindSelectionBoxPosition(int index){
+void findSelectionBoxPos(int index){
 	pos[0] = SELECTION_BOX_LEFT_ALIGN;
 	pos[1] = TEXT_TOP_ALIGN - 1 + (index * LINE_SPACE);
 }
 
-void PrintSelectionBox(int index){
-	FindSelectionBoxPosition(index);
+void printSelectionBox(int index){
+	findSelectionBoxPos(index);
 
 	gotoxy(pos[0], pos[1]);
 	puts("┌─────────────────────────┐");
@@ -249,8 +249,8 @@ void PrintSelectionBox(int index){
 	puts("└─────────────────────────┘");
 }
 
-void EraseSelectionBox(int index){
-	FindSelectionBoxPosition(index);
+void eraseSelectionBox(int index){
+	findSelectionBoxPos(index);
 
 	gotoxy(pos[0], pos[1]);
 	puts("                            ");
@@ -262,7 +262,7 @@ void EraseSelectionBox(int index){
 	puts("                            ");
 }
 
-queue* NewQueue(){
+queue* newQueue(){
 	queue *q = malloc(sizeof(queue));	
 	node *head = malloc(sizeof(node));	
 	node *tail = malloc(sizeof(node));	
@@ -280,26 +280,13 @@ queue* NewQueue(){
 	return q;
 }
 
-bool IsEmptyQueue(queue *q){
+bool isEmptyQueue(queue *q){
 	return q == NULL || q->count == 0;
 }
 
-void* getFromQueue(queue *q, int pos){
-	if(IsEmptyQueue(q) || pos >= q->count)
-		return NULL;
-
-	node *target = q->head->next;
-
-	for(int i = 0 ; i < pos ; i++){
-		target = target->next;
-	}
-
-	return target->data;
-}
-
-void InsertQueue(queue *q, void *data){
+void insertQueue(queue *q, void *data){
 	if(q == NULL)
-		q = NewQueue();
+		q = newQueue();
 
 	node *newNode = malloc(sizeof(node));
 
@@ -313,8 +300,8 @@ void InsertQueue(queue *q, void *data){
 	q->count += 1;
 }
 
-void DeleteQueue(queue *q, void **data){
-	if(IsEmptyQueue(q)) 
+void deleteQueue(queue *q, void **data){
+	if(isEmptyQueue(q)) 
 		return;
 
 	node *target = q->head->next;
@@ -329,22 +316,8 @@ void DeleteQueue(queue *q, void **data){
 	q->count -= 1;
 }
 
-void DeleteQueuePosition(queue *q, int pos, void **data){
-	if(IsEmptyQueue(q) || pos >= q->count)
-		return;
-
-	node *target = q->head->next;
-
-	// find target node
-	for(int i = 0 ; i < pos ; i++){
-		target = target->next;
-	}
-
-	DeleteQueueNode(q, target, data);	
-}
-
-void DeleteQueueNode(queue *q, node *node, void **data){
-	if(IsEmptyQueue(q))
+void deleteQueueNode(queue *q, node *node, void **data){
+	if(isEmptyQueue(q))
 		return;
 
 	// save data to delete
@@ -357,7 +330,7 @@ void DeleteQueueNode(queue *q, node *node, void **data){
 	q->count -= 1;
 }
 
-void FreeQueue(queue *q){
+void freeQueue(queue *q){
 	if(q == NULL)
 		return;
 
@@ -371,99 +344,84 @@ void FreeQueue(queue *q){
 	}
 }
 
-void Init(){
-	system("clear");
-	SetCursorVisibility(false);
-	PrintBoard();
-	PrintProcessMenu();
-
-	int menuIndex = 1;
+void waitSelectionMenu(int *menuNum, int bound){
         int key;
-
-	PrintSelectionBox(menuIndex);
 
 	while(1){
 		key = getch();
 
 		/* Enter key pressed */
 		if(key == ENTER){ 
-			if(menuIndex == EXIT)
-				return;
-			else 
-				break;
+			return;
 		}
 		
 		/* Arrow key pressed */
 		if(key == ARROW && (key = getch()) == ARROW2){ 
 			key = getch();
 
-			if(key == UP && menuIndex > 1){
-				EraseSelectionBox(menuIndex);
-				menuIndex--;
-				PrintSelectionBox(menuIndex);
-			} else if(key == DOWN && menuIndex < EXIT){
-				EraseSelectionBox(menuIndex);
-				menuIndex++;
-				PrintSelectionBox(menuIndex);
+			if(key == UP && *menuNum > 1){
+				eraseSelectionBox(*menuNum);
+				(*menuNum)--;
+				printSelectionBox(*menuNum);
+			} else if(key == DOWN && *menuNum < bound){
+				eraseSelectionBox(*menuNum);
+				(*menuNum)++;
+				printSelectionBox(*menuNum);
 			}
 		}
 	}
-	
-	num_of_process = menuIndex + 1;
-	CreateProcessArr();	
 }
 
-void InitSchedMenu(){
+void init(){
+	w_type = WORKLOAD_DEFAULT;
+	
 	system("clear");
-	PrintBoard();
-	PrintWorkloadTable();
-	PrintSchedMenu();
+	setCursorVisibility(false);
+	printBoard();
+	printProcMenu();
 
-	int menuIndex = 1;
-        int key;
+	int menuNum = 1;
+	printSelectionBox(menuNum);
+	waitSelectionMenu(&menuNum, EXIT);
 
-	PrintSelectionBox(menuIndex);	
+	if(menuNum == EXIT)
+		return;
+
+	num_of_proc = menuNum + 1;
+	createProcArr();	
+}
+
+void initSchedMenu(){
+	system("clear");
+	printBoard();
+	printSchedMenu();
+	printSchedTable();
+	printWorkloadTable();
+
+	int menuNum = 1;
+	printSelectionBox(menuNum);
 
 	while(1){
-		key = getch();
-	
-		/* Enter key pressed */
-		if(key == ENTER){  
-			if(menuIndex == BACK_TO_MAIN)
-				break;
-			else 
-				RunScheduling(menuIndex);	
-		}
-	
-		/* Arrow key pressed */
-		if(key == ARROW && (key = getch()) == ARROW2){  
-			key = getch();
+		waitSelectionMenu(&menuNum, BACK_TO_MAIN);
 
-			if(key == UP && menuIndex > 1){
-				EraseSelectionBox(menuIndex);
-				menuIndex--;
-				PrintSelectionBox(menuIndex);
-			} else if(key == DOWN && menuIndex < BACK_TO_MAIN){
-				EraseSelectionBox(menuIndex);
-				menuIndex++;
-				PrintSelectionBox(menuIndex);
-			}
+		if(menuNum == BACK_TO_MAIN){
+			init();
+			return;
 		}
+
+		runScheduling(menuNum);
 	}
-
-	view_type = VIEW_TYPE_DEFAULT;
-	Init();
 }
 
-void ResetProcess(process *proc){
+void resetProc(process *proc){
 	proc->start = INITIAL_VALUE;
 	proc->remain = proc->service;
 	proc->finish = INITIAL_VALUE;
 }
 
-void InitProcess(process *proc, char n, int c){
+void initProcess(process *proc, char n, int c){
 	proc->name = n;
-	proc->textColor = c;
+	proc->color = c;
 	proc->arrival = INITIAL_VALUE;
 	proc->service = INITIAL_VALUE;
 	proc->period = INITIAL_VALUE;
@@ -473,94 +431,104 @@ void InitProcess(process *proc, char n, int c){
 	proc->finish = INITIAL_VALUE;
 }
 
-void CreateProcessArr(){	
-	process_arr = malloc(sizeof(process) * num_of_process);	
+void createProcArr(){	
+	proc_arr = malloc(sizeof(process) * num_of_proc);	
 
-	for(int i = 0 ; i < num_of_process ; i++){
-		InitProcess(process_arr + i, 'A' + i, RED + (i % NUM_OF_COLORS));
+	for(int i = 0 ; i < num_of_proc ; i++){
+		initProcess(proc_arr + i, 'A' + i, RED + (i % NUM_OF_COLORS));
 	}
 
-	PrintWorkloadTable();
+	int posX = TABLE_LEFT_ALIGN + TABLE_MARGIN + TABLE_WIDTH;
+	int posY = getTablePosY() + TABLE_HEIGHT * 2 - 1;
 
-	SetCursorVisibility(true);
-	for(int i = 0 ; i < num_of_process ; i++){
-	 	gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH + TABLE_MARGIN, TABLE_TOP_ALIGN + (i * TABLE_HEIGHT) + 3);
-		scanf("%d", &process_arr[i].arrival);
-	 	gotoxy(TABLE_LEFT_ALIGN + TABLE_WIDTH * 2 + TABLE_MARGIN, TABLE_TOP_ALIGN + (i * TABLE_HEIGHT) + 3);
-		scanf("%d", &process_arr[i].service);
+	printSchedTable();
+	printWorkloadTable();
+
+	setCursorVisibility(true);
+	for(int i = 0 ; i < num_of_proc ; i++){
+	 	gotoxy(posX, posY + (i * TABLE_HEIGHT));
+		scanf("%d", &proc_arr[i].arrival);
+	 	gotoxy(posX + TABLE_WIDTH, posY + (i * TABLE_HEIGHT));
+		scanf("%d", &proc_arr[i].service);
+		proc_arr[i].remain = proc_arr[i].service;
 	}
 	getchar();
-	SetCursorVisibility(false);
+	setCursorVisibility(false);
 	
-	InitSchedMenu();
+	initSchedMenu();
 
-	free(process_arr);
+	free(proc_arr);
 }
 
-void InputWorkload(){
+void inputWorkload(){
 	int posX = TABLE_LEFT_ALIGN + TABLE_WIDTH * 3 + TABLE_MARGIN;
-	int posY = TABLE_TOP_ALIGN + 3;
+	int posY = getTablePosY() + 3;
 
-	SetCursorVisibility(true);
-	for(int i = 0 ; i < num_of_process ; i++){
+	setCursorVisibility(true);
+	for(int i = 0 ; i < num_of_proc ; i++){
 	 	gotoxy(posX, posY + i * TABLE_HEIGHT);
-		scanf("%d", view_type == VIEW_TYPE_PERIOD ? &process_arr[i].period : &process_arr[i].tickets);
+		scanf("%d", w_type == WORKLOAD_PERIOD ? &proc_arr[i].period : &proc_arr[i].tickets);
 	}
 	getch();
-	SetCursorVisibility(false);
+	setCursorVisibility(false);
 }
 
-void PrintResultQueue(){
-	const int TOP_ALIGN = GetSchedTableTopAlign() + 2;
+void printResultQueue(){
+	int posX = TABLE_LEFT_ALIGN;
+	int posY = TABLE_TOP_ALIGN + 1;
 	const int LEFT_SPACE = 6;
 
-	PrintSchedTable();
+	printSchedTable();
 
 	sched_process *proc = malloc(sizeof(sched_process));
 
 	int now = 0;
-	while(now < MAX_TIME && !IsEmptyQueue(result_queue)){
-		DeleteQueue(result_queue, (void**) &proc); 
+	while(now < MAX_TIME && !isEmptyQueue(result_q)){
+		deleteQueue(result_q, (void**) &proc); 
 		
 		now = proc->start;
 		int index = proc->name - (int) 'A';
 
+		gotoxy(now, 44);
+		printf("%c", proc->name);
 		while(now < MAX_TIME && now < proc->start + proc->running){		
-			gotoxy(TABLE_LEFT_ALIGN + (now * LEFT_SPACE), TOP_ALIGN + (TABLE_HEIGHT * index));
+			gotoxy(posX + (now * LEFT_SPACE), posY + (TABLE_HEIGHT * index));
 			printf("│");
-			SetConsoleOutColor(proc->textColor);
+			setColor(proc->color);
 			printf("  %c  ", proc->name);
-			SetConsoleOutColor(RESET);
+			setColor(RESET);
 			printf("│");
 		
 			now++;
 		}
 	}
+
+	free(proc);
 }
 
-void PrintResultMetrics(){
+void printResultMetrics(){
 	int posX = METRICS_LEFT_ALIGN;
-	int posY = TABLE_TOP_ALIGN - 1;
+	int posY = getTablePosY() - 1;
 
 	gotoxy(posX, posY);
-	puts("  Result Metrics  ");
+	puts(" ◆  Result Metrics  ");
 
 	gotoxy(posX, ++posY);
-	puts("┌────────────┬────────────┬────────────┬────────────┐");
+	puts("┌────────────┬────────────┬────────────┬────────────┬────────────┐");
 	gotoxy(posX, ++posY);
-	puts("│ First Run  │ Completion │ Turnaround │  Response  │");
+	puts("│  Process   │  Firstrun  │ Completion │ Turnaround │  Response  │");
 
 	int totalT = 0, totalR = 0;
 
-	for(int i = 0 ; i < num_of_process ; i++){
+	for(int i = 0 ; i < num_of_proc ; i++){
 		gotoxy(posX, ++posY);
-		puts("├────────────┼────────────┼────────────┼────────────┤");
+		puts("├────────────┼────────────┼────────────┼────────────┼────────────┤");
 		gotoxy(posX, ++posY);
-		puts("│            │            │            │            │");
+		puts("│            │            │            │            │            │");
 
-		int arrival = process_arr[i].arrival;
-		int start = process_arr[i].start;
-		int finish = process_arr[i].finish;
+		int arrival = proc_arr[i].arrival;
+		int start = proc_arr[i].start;
+		int finish = proc_arr[i].finish;
 
 		if(start == INITIAL_VALUE || finish == INITIAL_VALUE)
 			continue;
@@ -570,170 +538,198 @@ void PrintResultMetrics(){
 		totalT += turnaround;
 		totalR += response;
 
-		gotoxy(posX + TABLE_MARGIN, posY);
+		posX += TABLE_MARGIN;
+
+		setColor(RED + (i % NUM_OF_COLORS));
+		gotoxy(posX, posY);
+		printf("%c", proc_arr[i].name);
+		gotoxy(posX + TABLE_WIDTH, posY);
 		printf("%d", start);
-	 	gotoxy(posX + TABLE_WIDTH + TABLE_MARGIN, posY);
+	 	gotoxy(posX + TABLE_WIDTH * 2, posY);
 		printf("%d", finish);
-	 	gotoxy(posX + TABLE_WIDTH * 2 + TABLE_MARGIN, posY);
+	 	gotoxy(posX + TABLE_WIDTH * 3, posY);
 		printf("%d", turnaround);
-	 	gotoxy(posX + TABLE_WIDTH * 3 + TABLE_MARGIN, posY);
+	 	gotoxy(posX + TABLE_WIDTH * 4, posY);
 		printf("%d", response);
+		setColor(RESET);
+
+		posX -= TABLE_MARGIN;
 	}
 
 	gotoxy(posX, ++posY); posY++;
-	puts("└────────────┴────────────┴────────────┴────────────┘");
-	gotoxy(posX + 2, ++posY); posY++;
-	SetConsoleOutColor(BLU);
-	printf("Average Turnaround Time = %0.3f\n", totalT / (float) num_of_process);
-	gotoxy(posX + 2, ++posY);
-	printf("Average Response Time   = %0.3f\n", totalR / (float) num_of_process);
-	SetConsoleOutColor(RESET);
+	puts("└────────────┴────────────┴────────────┴────────────┴────────────┘");
+	
+	gotoxy(posX, ++posY); posY++;
+	printf(" ◆  Average Turnaround Time = %0.3f\n", totalT / (float) num_of_proc);
+	gotoxy(posX, ++posY);
+	printf(" ◆  Average Response Time   = %0.3f\n", totalR / (float) num_of_proc);
 }
 
-void PrintSchedulingTitle(int index){
+void printSchedulingTitle(int index){
 	int posX = TABLE_LEFT_ALIGN;
-	int posY = GetSchedTableTopAlign() - 2;
+	int posY = TABLE_TOP_ALIGN - 3;
 	
 	gotoxy(posX, posY);
-	SetConsoleOutColor(BLU);
-	printf("%-40s", SCHEDULING[index - 1]);
-	SetConsoleOutColor(RESET);
+	printf(" ◆  %-40s", SCHEDULING_NAME[index - 1]);
 }
 
-int InputTimeQuantum(){
+int inputTimeQuantum(){
 	int posX = TABLE_LEFT_ALIGN + 20;
-	int posY = GetSchedTableTopAlign() - 2;
+	int posY = TABLE_TOP_ALIGN - 3;
 	
 	int tquantum;
 
 	gotoxy(posX, posY);
-	SetCursorVisibility(true);
-	SetConsoleOutColor(BLU);
+	setCursorVisibility(true);
+	setColor(BLU);
 	printf("time quantum = ");
 	scanf("%d", &tquantum);
 	getch();
-	SetConsoleOutColor(RESET);
-	SetCursorVisibility(false);
+	setColor(RESET);
+	setCursorVisibility(false);
 
 	return tquantum;
 }
 
-void RunScheduling(int index){
+void runScheduling(int index){
 	system("clear");
-	PrintBoard();
-	PrintSchedMenu();
-	PrintSelectionBox(index);
-	PrintSchedulingTitle(index);
+	printBoard();
+	printSchedMenu();
+	printSchedTable();
+	printSelectionBox(index);
+	printSchedulingTitle(index);
 
 	// init ready queue
-	ready_queue_cnt = 1;
-	ready_queue = NewQueue();	
+	ready_q_cnt = 1;
+	ready_q = newQueue();	
 	// init result queue
-	result_queue = NewQueue();	
+	result_q = newQueue();	
 	// init running process
-	running_proc = malloc(sizeof(process));
+	run_proc = malloc(sizeof(process));
+	
+	w_type = WORKLOAD_DEFAULT;
+	printWorkloadTable();
 
-	view_type = VIEW_TYPE_DEFAULT;
-	PrintWorkloadTable();
+	for(int i = 0 ; i < num_of_proc ; i++){
+		resetProc(proc_arr + i);
+	}
 	
 	switch(index){
 		case 1:
 			FCFS();
-			PrintResultMetrics();
+			printResultMetrics();
 			break;
 		case 2:	
-			RR(InputTimeQuantum());
-			PrintResultMetrics();
+			RR(inputTimeQuantum());
+			printResultMetrics();
 			break;
 		case 3:
 			SJF();
-			PrintResultMetrics();
+			printResultMetrics();
 			break;
 		case 4:
 			HRRN();
-			PrintResultMetrics();
+			printResultMetrics();
 			break;
 		case 5:
-			MLFQ(TYPE_DEFAULT, InputTimeQuantum());
-			PrintResultMetrics();
+			MLFQ(FEEDBACK_DEFAULT, inputTimeQuantum());
+			printResultMetrics();
 			break;
 		case 6:
-			MLFQ(TYPE_MULTIPLE, 2);
-			PrintResultMetrics();
+			MLFQ(FEEDBACK_MULTIPLE, 2);
+			printResultMetrics();
 			break;
 		case 7:
-			view_type = VIEW_TYPE_PERIOD;
-			PrintWorkloadTable();
+			w_type = WORKLOAD_PERIOD;
+			printWorkloadTable();
 			RM();
 			break;
 		case 8:
-			view_type = VIEW_TYPE_TICKET;
-			PrintWorkloadTable();
+			w_type = WORKLOAD_TICKET;
+			printWorkloadTable();
 			STRIDE();
-			PrintResultMetrics();
+			printResultMetrics();
 			break;
 	}
 
-	PrintResultQueue();
+	printResultQueue();
 
 	// free ready queue
-	for(int i = 0 ; i < ready_queue_cnt ; i++){
-		FreeQueue(ready_queue + i);
+	for(int i = 0 ; i < ready_q_cnt ; i++){
+		freeQueue(ready_q + i);
 	}	
-	free(ready_queue);
+	free(ready_q);
 
 	// free result queue
-	FreeQueue(result_queue);
-	free(result_queue);
+	freeQueue(result_q);
+	free(result_q);
 }
 
-void UpdateReadyQueue(int now){
+void updateReadyQueue(int now){
 	// insert new process first
-	for(int i = 0 ; i < num_of_process ; i++){
-		if(process_arr[i].arrival == now){
-			ResetProcess(process_arr + i);
-			InsertQueue(ready_queue, process_arr + i);
-		}
+	for(int i = 0 ; i < num_of_proc ; i++){
+		if(proc_arr[i].arrival == now)
+			insertQueue(ready_q, proc_arr + i);
 	}
 }
 
-void WaitIfReadyQueueEmpty(int *now){
-	while(*now < MAX_SCHED_TIME && IsEmptyQueue(ready_queue)){
-		if(view_type == VIEW_TYPE_PERIOD)
-			UpdatePeriodReadyQueue(++(*now));
-		else
-			UpdateReadyQueue(++(*now));
+bool isSchedAllFinish(){
+	for(int i = 0 ; i < num_of_proc ; i++){
+		if(proc_arr[i].finish == INITIAL_VALUE)
+			return false;
+	}
+
+	return true;
+}
+
+void waitIfReadyQueueEmpty(int *now){
+	while(isEmptyQueue(ready_q)){
+		// scheduling finished
+		if(isSchedAllFinish())
+			return;
+
+		updateReadyQueue(++(*now));
 	}
 }
 
-void UpdatePeriodReadyQueue(const int now){
-	for(int i = 0 ; i < num_of_process ; i++){
+void waitPeriodIfReadyQueueEmpty(int *now){
+	while(isEmptyQueue(ready_q)){
+		// scheduling finished
+		if(*now == MAX_TIME) 
+			return;
+
+		updatePeriodReadyQueue(++(*now));
+	}
+}
+
+void updatePeriodReadyQueue(const int now){
+	for(int i = 0 ; i < num_of_proc ; i++){
 		int parr = 0;
 		int cnt = 0;
-		int arr = process_arr[i].arrival;
-		int p = process_arr[i].period;
+		int arr = proc_arr[i].arrival;
+		int p = proc_arr[i].period;
 		while(parr <= now){
 			parr = arr + p * cnt++; 
 			if(now == parr){
-				ResetProcess(process_arr + i);
-				InsertQueue(ready_queue, process_arr + i);
+				resetProc(proc_arr + i);
+				insertQueue(ready_q, proc_arr + i);
 			}
 		}
 	}
 }
 
-sched_process* NewSchedProcess(process *source, int start, int running){
+sched_process* newSchedProc(process *source, int start, int running){
 	sched_process *proc = malloc(sizeof(sched_process));
 	
 	proc->name = source->name;
-	proc->textColor = source->textColor;
+	proc->color = source->color;
 	proc->start = start;
 	proc->running = running;
 
 	return proc;
 }
 
-void Schedule(process *proc, int *now, const int t_while){
+void schedule(process *proc, int *now, const int t_while){
 	const int start = *now;	
 
 	/* process first run */
@@ -744,10 +740,10 @@ void Schedule(process *proc, int *now, const int t_while){
 	while(running < t_while){
 		proc->remain -= 1;
 
-		if(view_type == VIEW_TYPE_PERIOD)
-			UpdatePeriodReadyQueue(++(*now));
+		if(w_type == WORKLOAD_PERIOD)
+			updatePeriodReadyQueue(++(*now));
 		else
-			UpdateReadyQueue(++(*now));
+			updateReadyQueue(++(*now));
 
 		running++;
 
@@ -758,21 +754,21 @@ void Schedule(process *proc, int *now, const int t_while){
 		}
 	}
 
-	InsertQueue(result_queue, NewSchedProcess(proc, start, running));
+	insertQueue(result_q, newSchedProc(proc, start, running));
 }
 
 /*
  * find the shortest process node in ready queue
  */
-node* GetShortestJobNode(){
-	if(IsEmptyQueue(ready_queue))
+node* getShortestJobNode(){
+	if(isEmptyQueue(ready_q))
 		return NULL;
 
-	node *curr = ready_queue->head->next;
+	node *curr = ready_q->head->next;
 	process *currPros = (process *) curr->data;
 
 	node *shortest = curr;
-	while(curr != NULL && curr != ready_queue->tail){
+	while(curr != NULL && curr != ready_q->tail){
 		if(currPros->remain < ((process *) shortest->data)->remain)
 			shortest = curr;
 		curr = curr->next;
@@ -786,24 +782,24 @@ node* GetShortestJobNode(){
  * calculate response ratio
  * 1 + ( Waiting Time / Estimated Run Time )
  */
-float GetResponseRatio(int now, process *proc){
+float getResponseRatio(int now, process *proc){
 	return 1 + (float) (now - proc->arrival) / (float) proc->service;
 }
 
 /*
  * find the highest response ratio process node in ready queue
  */
-node* GetHighestResponseRatioNode(int now){
-	if(IsEmptyQueue(ready_queue))
+node* getHighestResponseRatioNode(int now){
+	if(isEmptyQueue(ready_q))
 		return NULL;
 
-	node *curr = ready_queue->head->next;
+	node *curr = ready_q->head->next;
 	process *currPros = (process *) curr->data;
 
 	node *highest = curr;
-	float maxRatio = GetResponseRatio(now, currPros);
-	while(curr != NULL && curr != ready_queue->tail){
-		float currRatio = GetResponseRatio(now, currPros);
+	float maxRatio = getResponseRatio(now, currPros);
+	while(curr != NULL && curr != ready_q->tail){
+		float currRatio = getResponseRatio(now, currPros);
 		if(maxRatio < currRatio){
 			highest = curr;
 			maxRatio = currRatio;
@@ -817,175 +813,174 @@ node* GetHighestResponseRatioNode(int now){
 
 void FCFS(){
 	int now = 0;
-	UpdateReadyQueue(now);
+	updateReadyQueue(now);
 
-	while(now < MAX_SCHED_TIME){
-		// wait for new process 
-		WaitIfReadyQueueEmpty(&now);
+	while(1){
+		// wait for new process
+		waitIfReadyQueueEmpty(&now);
 
 		// finish scheduling
-		if(now == MAX_SCHED_TIME)
+		if(isEmptyQueue(ready_q))
 			break;
 
 		// get first process from ready queue 
-		DeleteQueue(ready_queue, (void **) &running_proc);
+		deleteQueue(ready_q, (void **) &run_proc);
 
 		// run until the process finish
-		Schedule(running_proc, &now, running_proc->service);
+		schedule(run_proc, &now, run_proc->service);
 	}
 }
 
 void RR(const int t_quantum){
 	int now = 0;
-	UpdateReadyQueue(now);
+	updateReadyQueue(now);
 
-	while(now < MAX_SCHED_TIME){
+	while(1){
 		// wait for new process
-		WaitIfReadyQueueEmpty(&now);
+		waitIfReadyQueueEmpty(&now);
 
 		// finish scheduling
-		if(now == MAX_SCHED_TIME)
+		if(isEmptyQueue(ready_q))
 			break;
 
 		// get first process from ready queue 
-		DeleteQueue(ready_queue, (void **) &running_proc);
+		deleteQueue(ready_q, (void **) &run_proc);
 
 		// run process during time quantum		
 		do
-			Schedule(running_proc, &now, t_quantum);
-		while(running_proc->remain != 0 && 
-			IsEmptyQueue(ready_queue)); // repeat if ready queue is empty
+			schedule(run_proc, &now, t_quantum);
+		while(run_proc->remain != 0 && 
+			isEmptyQueue(ready_q)); // repeat if ready queue is empty
 
 		/* insert the process into ready queue if service time remains */
-		if(running_proc->remain != 0)
-			InsertQueue(ready_queue, running_proc);
+		if(run_proc->remain != 0)
+			insertQueue(ready_q, run_proc);
 	}
 }
 
 void SJF(){
 	int now = 0;
-	UpdateReadyQueue(now);
+	updateReadyQueue(now);
 
-	while(now < MAX_SCHED_TIME){
+	while(1){
 		// wait for new process 
-		WaitIfReadyQueueEmpty(&now);
+		waitIfReadyQueueEmpty(&now);
 
 		// finish scheduling
-		if(now == MAX_SCHED_TIME)
+		if(isEmptyQueue(ready_q))
 			break;
 
 		// find the shortest process and delete it from queue
-		node *target = GetShortestJobNode();
-		DeleteQueueNode(ready_queue, target, (void **) &running_proc);
+		node *target = getShortestJobNode();
+		deleteQueueNode(ready_q, target, (void **) &run_proc);
 
 		// run until the process finish
-		Schedule(running_proc, &now, running_proc->service);
+		schedule(run_proc, &now, run_proc->service);
 	}
 }
 
 void HRRN(){
 	int now = 0;
-	UpdateReadyQueue(now);
+	updateReadyQueue(now);
 
-	while(now < MAX_SCHED_TIME){
+	while(1){
 		// wait for new process 
-		WaitIfReadyQueueEmpty(&now);
+		waitIfReadyQueueEmpty(&now);
 
 		// finish scheduling
-		if(now == MAX_SCHED_TIME)
+		if(isEmptyQueue(ready_q))
 			break;
 
 		// find the shortest process and delete it from queue
-		node *target = GetHighestResponseRatioNode(now);
-		DeleteQueueNode(ready_queue, target, (void **) &running_proc);
+		node *target = getHighestResponseRatioNode(now);
+		deleteQueueNode(ready_q, target, (void **) &run_proc);
 
 		// run until the process finish
-		Schedule(running_proc, &now, running_proc->service);
+		schedule(run_proc, &now, run_proc->service);
 	}
 }
 
-void IncreaseReadyQueue(){
-	ready_queue = realloc(ready_queue, sizeof(queue) * ++ready_queue_cnt);
-	ready_queue[ready_queue_cnt - 1] = *NewQueue();
+void increaseReadyQueue(){
+	ready_q = realloc(ready_q, sizeof(queue) * ++ready_q_cnt);
+	ready_q[ready_q_cnt - 1] = *newQueue();
 }
 
 /*
  * find the level of queue not empty (exist process to run)
  */
-int FindNotEmptyQueueLevel(int *now){
-	while(*now < MAX_SCHED_TIME){
+int findNotEmptyQueueLevel(int *now){
+	while(1){
 		int level = 0;
-		while(level < ready_queue_cnt){
-			if(!IsEmptyQueue(&ready_queue[level]))
-				break;
+		while(level < ready_q_cnt){
+			/* queue is not empty */
+			if(!isEmptyQueue(&ready_q[level]))
+				return level;
 			level++;
 		}
 
-		/* queue is not empty */
-		if(level < ready_queue_cnt)
-			return level;
+		// all process finished
+		if(isSchedAllFinish())
+			return -1;
 
-		UpdateReadyQueue(++(*now));
+		updateReadyQueue(++(*now));
 	}
-
-	return -1;
 }
 
-void MLFQ(const MLFQ_TYPE type, const int t_quantum){
+void MLFQ(const feedback_type type, const int t_quantum){
 	int now = 0;
-	UpdateReadyQueue(now);
+	updateReadyQueue(now);
 
-	while(now < MAX_SCHED_TIME){
+	while(1){
 		// find the process to run from multi queue
-		int qLevel = FindNotEmptyQueueLevel(&now);
+		int qLevel = findNotEmptyQueueLevel(&now);
 
 		// finish scheduling
 		if(qLevel == -1)
 			break;
 
-		DeleteQueue(&ready_queue[qLevel], (void **) &running_proc);
+		deleteQueue(&ready_q[qLevel], (void **) &run_proc);
 
 		bool repeat;
 		do{
 			repeat = true;
 
-			int t_while = (type == TYPE_DEFAULT) ? 
+			int t_while = (type == FEEDBACK_DEFAULT) ? 
 					t_quantum : 
-					Pow(t_quantum, qLevel);
+					POW(t_quantum, qLevel);
 
 			// run process during time quantum 
-			Schedule(running_proc, &now, t_while);
+			schedule(run_proc, &now, t_while);
 
 			// check is there any process to run next 
-			for(int i = 0 ; i < ready_queue_cnt ; i++){
-				if(!IsEmptyQueue(&ready_queue[i])){
+			for(int i = 0 ; i < ready_q_cnt ; i++){
+				if(!isEmptyQueue(&ready_q[i])){
 					repeat = false;
 					break;
 				}
 			}
-		} while(running_proc->remain != 0 && repeat); // repeat if queue empty
+		} while(run_proc->remain != 0 && repeat); // repeat if queue empty
 
 		/* insert the process if service time remains */
-		if(running_proc->remain != 0){
+		if(run_proc->remain != 0){
 			/* check if we need to increase the num of queue */
-			if(qLevel == ready_queue_cnt - 1)
-				IncreaseReadyQueue();
+			if(qLevel == ready_q_cnt - 1)
+				increaseReadyQueue();
 			// insert process into the next level of queue
-			InsertQueue(&ready_queue[qLevel + 1], running_proc);
+			insertQueue(&ready_q[qLevel + 1], run_proc);
 		}
 	}
 }
 
-node* GetLeastPeriodNode(){
-	if(IsEmptyQueue(ready_queue))
+node* getLeastPeriodNode(){
+	if(isEmptyQueue(ready_q))
 		return NULL;
 
-	node *curr = ready_queue->head->next;
+	node *curr = ready_q->head->next;
 	process *currProc = (process *) curr->data;
 
 	node *target = curr;
 	int min = currProc->period;
-	while(curr && curr != ready_queue->tail){
+	while(curr && curr != ready_q->tail){
 		if(currProc->period < min){
 			min = currProc->period;
 			target = curr;
@@ -998,43 +993,43 @@ node* GetLeastPeriodNode(){
 }
 
 void RM(){
-	if(process_arr && process_arr[0].period == INITIAL_VALUE){
-		InputWorkload();
+	if(proc_arr && proc_arr[0].period == INITIAL_VALUE){
+		inputWorkload();
 	}
 
 	int now = 0;
-	UpdatePeriodReadyQueue(now);
+	updatePeriodReadyQueue(now);
 
-	while(now < MAX_SCHED_TIME){
+	while(1){
 		// wait for new process 
-		WaitIfReadyQueueEmpty(&now);
+		waitPeriodIfReadyQueueEmpty(&now);
 
 		// finish scheduling
-		if(now == MAX_SCHED_TIME)
+		if(now == MAX_TIME)
 			break;
 
-		node *target = GetLeastPeriodNode();
-		running_proc = (process *) target->data;
+		node *target = getLeastPeriodNode();
+		run_proc = (process *) target->data;
 
-		Schedule(running_proc, &now, 1);
+		schedule(run_proc, &now, 1);
 
-		if(running_proc->remain == 0)
-			DeleteQueueNode(ready_queue, target, (void **) &running_proc);
+		if(run_proc->remain == 0)
+			deleteQueueNode(ready_q, target, (void **) &run_proc);
 	}
 }
 
-node* GetLeastStrideNode(){
-	if(IsEmptyQueue(ready_queue))
+node* getLeastStrideNode(){
+	if(isEmptyQueue(ready_q))
 		return NULL;
 
-	node *curr = ready_queue->head->next;
+	node *curr = ready_q->head->next;
 	process *currProc = (process *) curr->data;
 
-	int lcm = GetLcmFromReadyQueue();
+	int lcm = getLcmFromReadyQueue();
 	int minStride = INT_MAX;
 	node *target = curr;
-	while(curr && curr != ready_queue->tail){
-		int sum = GetStrideSum(currProc, lcm);
+	while(curr && curr != ready_q->tail){
+		int sum = getStrideSum(currProc, lcm);
 		if(sum < minStride){
 			minStride = sum;
 			target = curr;
@@ -1046,16 +1041,16 @@ node* GetLeastStrideNode(){
 	return target;
 }
 
-int GetStrideSum(process *proc, int lcm){
+int getStrideSum(process *proc, int lcm){
 	return lcm / proc->tickets * (proc->service - proc->remain);
 }
 
-int GetLcmFromReadyQueue(){
-	node *curr = ready_queue->head->next;
+int getLcmFromReadyQueue(){
+	node *curr = ready_q->head->next;
 	process *currProc = (process *) curr->data;
 
 	int lcm = 1;
-	while(curr && curr != ready_queue->tail){
+	while(curr && curr != ready_q->tail){
 		lcm = LCM(lcm, currProc->tickets);
 		curr = curr->next;
 		currProc = (process *) curr->data;
@@ -1065,29 +1060,29 @@ int GetLcmFromReadyQueue(){
 }
 
 void STRIDE(){
-	if(process_arr && process_arr[0].tickets == INITIAL_VALUE){
-		InputWorkload();
+	if(proc_arr && proc_arr[0].tickets == INITIAL_VALUE){
+		inputWorkload();
 	}
 
 	int now = 0;
-	UpdateReadyQueue(now);
+	updateReadyQueue(now);
 
-	while(now < MAX_SCHED_TIME){
+	while(1){
 		// wait for new process 
-		WaitIfReadyQueueEmpty(&now);
+		waitIfReadyQueueEmpty(&now);
 
 		// finish scheduling
-		if(now == MAX_SCHED_TIME)
+		if(isEmptyQueue(ready_q))
 			break;
 
 		// find the most stride process and delete it from queue
-		node *target = GetLeastStrideNode();
-		running_proc = (process *) target->data;
+		node *target = getLeastStrideNode();
+		run_proc = (process *) target->data;
 
-		Schedule(running_proc, &now, 1);
+		schedule(run_proc, &now, 1);
 
-		if(running_proc->remain == 0)
-			DeleteQueueNode(ready_queue, target, (void **) &running_proc);
+		if(run_proc->remain == 0)
+			deleteQueueNode(ready_q, target, (void **) &run_proc);
 	}
 }
 
@@ -1096,11 +1091,11 @@ void gotoxy(int x, int y){
 	printf("\033[%d;%dH", y + 1, x + 1);
 }
 
-void SetConsoleOutColor(color c){
+void setColor(color c){
 	printf("\033[%d;1m", c);
 }
 
-void SetCursorVisibility(bool visible){
+void setCursorVisibility(bool visible){
 	printf("\e[?25%c", visible ==  true ? 'h' : 'l');
 }
 
@@ -1122,7 +1117,7 @@ int getch(){
 	return ch;
 }
 
-int Pow(int a, int b){
+int POW(int a, int b){
 	int result = 1;
 
 	for(int i = 0 ; i < b ; i++){

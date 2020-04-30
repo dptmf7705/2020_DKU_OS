@@ -35,22 +35,22 @@ typedef enum {
 } color;
 
 typedef enum {
-	TYPE_DEFAULT,
-	TYPE_MULTIPLE
-} MLFQ_TYPE;
+	FEEDBACK_DEFAULT,
+	FEEDBACK_MULTIPLE
+} feedback_type;
 
 typedef enum {
-	VIEW_TYPE_DEFAULT,
-	VIEW_TYPE_PERIOD,
-	VIEW_TYPE_TICKET
-} WORKLOAD_VIEW_TYPE;
+	WORKLOAD_DEFAULT,
+	WORKLOAD_PERIOD,
+	WORKLOAD_TICKET
+} workload_type;
 
 /*
  * process info
  */
 typedef struct _process {
 	char	name;
-	color	textColor;
+	color	color;
 	int	arrival;
 	int	service;
 	int	period;
@@ -65,7 +65,7 @@ typedef struct _process {
  */
 typedef struct _sched_process {
 	char	name;
-	color	textColor;
+	color	color;
 	int	start;
 	int	running;
 } sched_process;
@@ -89,47 +89,48 @@ typedef struct _queue {
 /*
  * formatting output
  */
-void PrintBoard();
-void PrintProcessMenu();
-void PrintWorkloadTable();
-void PrintSchedMenu();
-void PrintSchedTable();
-void PrintSelectionBox(int index);
-void EraseSelectionBox(int index);
-void FindSelectionBoxPosition(int index);
-int GetSchedTableTopAlign();
+void printBoard();
+void printProcessMenu();
+void printWorkloadTable();
+void printSchedMenu();
+void printSchedTable();
+void printSelectionBox(int index);
+void eraseSelectionBox(int index);
+void findSelectionBoxPosition(int index);
+int getTablePosY();
 
 /*
  * init menu
  */
-void Init();
-void InitSchedMenu();
-void CreateProcessArr();	
-void SortProcessArrByArrivalTime();
+void init();
+void initSchedMenu();
+void createProcArr();	
+void sortProcessArrByArrivalTime();
 
 /*
  * managing queue
  */
-queue* NewQueue();
-bool IsEmptyQueue(queue *q);
+queue* newQueue();
+bool isEmptyQueue(queue *q);
 void* getFromQueue(queue *q, int pos);
-void InsertQueue(queue *q, void *data);
-void DeleteQueue(queue *q, void **data);
-void DeleteQueuePosition(queue *q, int pos, void **data);
-void DeleteQueueNode(queue *q, node *node, void **data);
-void FreeQueue(queue *q);
+void insertQueue(queue *q, void *data);
+void deleteQueue(queue *q, void **data);
+void deleteQueuePosition(queue *q, int pos, void **data);
+void deleteQueueNode(queue *q, node *node, void **data);
+void freeQueue(queue *q);
 
 /* 
  * init scheduling 
  */
-void RunScheduling(int num);
-void UpdateReadyQueue(int now);
-void UpdatePeriodReadyQueue(int now);
-void WaitIfReadyQueueEmpty(int *now);
-void UpdateReadyQueueTimeout(process *proc);
-void PrintResultQueue();
-sched_process* NewSchedProcess(process *source, int start, int running);
+void runScheduling(int num);
+void updateReadyQueue(int now);
+void updatePeriodReadyQueue(int now);
+void waitIfReadyQueueEmpty(int *now);
+void updateReadyQueueTimeout(process *proc);
+void printResultQueue();
+sched_process* newSchedProcess(process *source, int start, int running);
 
+bool beginScheduling();
 /*
  * scheduling algorithms 
  */
@@ -137,23 +138,23 @@ void FCFS();
 void RR(const int t_quantum);
 void SJF();
 void HRRN();
-void MLFQ(const MLFQ_TYPE type, const int t_quantum);
+void MLFQ(const feedback_type type, const int t_quantum);
 void RM();
 
 
-int GetLcmFromReadyQueue();
-int GetStrideSum();
+int getLcmFromReadyQueue();
+int getStrideSum();
 void STRIDE();
 
-node* GetShortestProcNodeInReadyQueue();
+node* getShortestProcNodeInReadyQueue();
 
 void gotoxy(int x, int y);
-void SetConsoleOutColor(color color);
-void SetCursorVisibility(bool visible);
+void setColor(color c);
+void setCursorVisibility(bool visible);
 
 int getch();
 
-int Pow(int a, int b);
+int POW(int a, int b);
 int GCD(int a, int b);
 int LCM(int a, int b);
 

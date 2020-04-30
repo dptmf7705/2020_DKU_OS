@@ -34,10 +34,10 @@
  */
 
 int main(int argc, char *argv[]){
-	Init();
+	init();
 	
 	gotoxy(0, 50);
-	SetCursorVisibility(TRUE);
+	setCursorVisibility(TRUE);
 
 	return 0;	
 }
