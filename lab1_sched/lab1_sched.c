@@ -281,7 +281,7 @@ queue* newQueue(){
 }
 
 bool isEmptyQueue(queue *q){
-	return q == NULL || q->count == 0;
+	return !(q && q->count > 0);
 }
 
 void insertQueue(queue *q, void *data){
@@ -461,6 +461,12 @@ void createProcArr(){
 }
 
 void inputWorkload(){
+	if(w_type == WORKLOAD_PERIOD && proc_arr && proc_arr[0].period != INITIAL_VALUE)
+		return;
+
+	if(w_type == WORKLOAD_TICKET && proc_arr && proc_arr[0].tickets != INITIAL_VALUE)
+		return;
+
 	int posX = TABLE_LEFT_ALIGN + TABLE_WIDTH * 3 + TABLE_MARGIN;
 	int posY = getTablePosY() + 3;
 
@@ -489,8 +495,6 @@ void printResultQueue(){
 		now = proc->start;
 		int index = proc->name - (int) 'A';
 
-		gotoxy(now, 44);
-		printf("%c", proc->name);
 		while(now < MAX_TIME && now < proc->start + proc->running){		
 			gotoxy(posX + (now * LEFT_SPACE), posY + (TABLE_HEIGHT * index));
 			printf("│");
@@ -642,11 +646,13 @@ void runScheduling(int index){
 		case 7:
 			w_type = WORKLOAD_PERIOD;
 			printWorkloadTable();
+			inputWorkload();
 			RM();
 			break;
 		case 8:
 			w_type = WORKLOAD_TICKET;
 			printWorkloadTable();
+			inputWorkload();
 			STRIDE();
 			printResultMetrics();
 			break;
@@ -673,7 +679,7 @@ void updateReadyQueue(int now){
 	}
 }
 
-bool isSchedAllFinish(){
+bool isProcAllFinish(){
 	for(int i = 0 ; i < num_of_proc ; i++){
 		if(proc_arr[i].finish == INITIAL_VALUE)
 			return false;
@@ -682,24 +688,27 @@ bool isSchedAllFinish(){
 	return true;
 }
 
-void waitIfReadyQueueEmpty(int *now){
-	while(isEmptyQueue(ready_q)){
-		// scheduling finished
-		if(isSchedAllFinish())
-			return;
+int waitForProcArrival(int *now){
+	// finish scheduling
+	if(isProcAllFinish()) 
+		return -1;
 
+	while(isEmptyQueue(ready_q)){
 		updateReadyQueue(++(*now));
 	}
+
+	return 0;
 }
 
-void waitPeriodIfReadyQueueEmpty(int *now){
+int waitForProcPeriod(int *now){
 	while(isEmptyQueue(ready_q)){
 		// scheduling finished
 		if(*now == MAX_TIME) 
-			return;
+			return -1;
 
 		updatePeriodReadyQueue(++(*now));
 	}
+	return 0;
 }
 
 void updatePeriodReadyQueue(const int now){
@@ -789,7 +798,7 @@ float getResponseRatio(int now, process *proc){
 /*
  * find the highest response ratio process node in ready queue
  */
-node* getHighestResponseRatioNode(int now){
+node* getHighestRRNode(int now){
 	if(isEmptyQueue(ready_q))
 		return NULL;
 
@@ -812,16 +821,13 @@ node* getHighestResponseRatioNode(int now){
 }
 
 void FCFS(){
-	int now = 0;
-	updateReadyQueue(now);
+	int now = -1;
 
 	while(1){
-		// wait for new process
-		waitIfReadyQueueEmpty(&now);
-
-		// finish scheduling
-		if(isEmptyQueue(ready_q))
-			break;
+		// wait for new process arrival if ready queue empty 
+		if(isEmptyQueue(ready_q) && 
+		   waitForProcArrival(&now) == -1)
+			return;
 
 		// get first process from ready queue 
 		deleteQueue(ready_q, (void **) &run_proc);
@@ -832,16 +838,13 @@ void FCFS(){
 }
 
 void RR(const int t_quantum){
-	int now = 0;
-	updateReadyQueue(now);
+	int now = -1;
 
 	while(1){
-		// wait for new process
-		waitIfReadyQueueEmpty(&now);
-
-		// finish scheduling
-		if(isEmptyQueue(ready_q))
-			break;
+		// wait for new process arrival if ready queue empty 
+		if(isEmptyQueue(ready_q) && 
+		   waitForProcArrival(&now) == -1)
+			return;
 
 		// get first process from ready queue 
 		deleteQueue(ready_q, (void **) &run_proc);
@@ -849,26 +852,23 @@ void RR(const int t_quantum){
 		// run process during time quantum		
 		do
 			schedule(run_proc, &now, t_quantum);
-		while(run_proc->remain != 0 && 
+		while(run_proc->remain && 
 			isEmptyQueue(ready_q)); // repeat if ready queue is empty
 
 		/* insert the process into ready queue if service time remains */
-		if(run_proc->remain != 0)
+		if(run_proc->remain)
 			insertQueue(ready_q, run_proc);
 	}
 }
 
 void SJF(){
-	int now = 0;
-	updateReadyQueue(now);
+	int now = -1;
 
 	while(1){
-		// wait for new process 
-		waitIfReadyQueueEmpty(&now);
-
-		// finish scheduling
-		if(isEmptyQueue(ready_q))
-			break;
+		// wait for new process arrival if ready queue empty 
+		if(isEmptyQueue(ready_q) && 
+		   waitForProcArrival(&now) == -1)
+			return;
 
 		// find the shortest process and delete it from queue
 		node *target = getShortestJobNode();
@@ -880,19 +880,16 @@ void SJF(){
 }
 
 void HRRN(){
-	int now = 0;
-	updateReadyQueue(now);
+	int now = -1;
 
 	while(1){
-		// wait for new process 
-		waitIfReadyQueueEmpty(&now);
-
-		// finish scheduling
-		if(isEmptyQueue(ready_q))
-			break;
+		// wait for new process arrival if ready queue empty 
+		if(isEmptyQueue(ready_q) && 
+		   waitForProcArrival(&now) == -1)
+			return;
 
 		// find the shortest process and delete it from queue
-		node *target = getHighestResponseRatioNode(now);
+		node *target = getHighestRRNode(now);
 		deleteQueueNode(ready_q, target, (void **) &run_proc);
 
 		// run until the process finish
@@ -909,6 +906,10 @@ void increaseReadyQueue(){
  * find the level of queue not empty (exist process to run)
  */
 int findNotEmptyQueueLevel(int *now){
+	// all process finished
+	if(isProcAllFinish())
+		return -1;
+
 	while(1){
 		int level = 0;
 		while(level < ready_q_cnt){
@@ -918,27 +919,20 @@ int findNotEmptyQueueLevel(int *now){
 			level++;
 		}
 
-		// all process finished
-		if(isSchedAllFinish())
-			return -1;
-
 		updateReadyQueue(++(*now));
 	}
 }
 
 void MLFQ(const feedback_type type, const int t_quantum){
-	int now = 0;
-	updateReadyQueue(now);
+	int now = -1;
+	int qlevel;
 
 	while(1){
 		// find the process to run from multi queue
-		int qLevel = findNotEmptyQueueLevel(&now);
+		if((qlevel = findNotEmptyQueueLevel(&now)) == -1)
+			break; // finish scheduling
 
-		// finish scheduling
-		if(qLevel == -1)
-			break;
-
-		deleteQueue(&ready_q[qLevel], (void **) &run_proc);
+		deleteQueue(&ready_q[qlevel], (void **) &run_proc);
 
 		bool repeat;
 		do{
@@ -946,27 +940,27 @@ void MLFQ(const feedback_type type, const int t_quantum){
 
 			int t_while = (type == FEEDBACK_DEFAULT) ? 
 					t_quantum : 
-					POW(t_quantum, qLevel);
+					POW(t_quantum, qlevel);
 
 			// run process during time quantum 
 			schedule(run_proc, &now, t_while);
 
 			// check is there any process to run next 
 			for(int i = 0 ; i < ready_q_cnt ; i++){
-				if(!isEmptyQueue(&ready_q[i])){
+				if(!isEmptyQueue(ready_q + i)){
 					repeat = false;
 					break;
 				}
 			}
-		} while(run_proc->remain != 0 && repeat); // repeat if queue empty
+		} while(run_proc->remain && repeat); // repeat if queue empty
 
 		/* insert the process if service time remains */
-		if(run_proc->remain != 0){
+		if(run_proc->remain){
 			/* check if we need to increase the num of queue */
-			if(qLevel == ready_q_cnt - 1)
+			if(qlevel == ready_q_cnt - 1)
 				increaseReadyQueue();
 			// insert process into the next level of queue
-			insertQueue(&ready_q[qLevel + 1], run_proc);
+			insertQueue(&ready_q[qlevel + 1], run_proc);
 		}
 	}
 }
@@ -993,16 +987,13 @@ node* getLeastPeriodNode(){
 }
 
 void RM(){
-	if(proc_arr && proc_arr[0].period == INITIAL_VALUE){
-		inputWorkload();
-	}
-
-	int now = 0;
-	updatePeriodReadyQueue(now);
+	int now = -1;
 
 	while(1){
-		// wait for new process 
-		waitPeriodIfReadyQueueEmpty(&now);
+		// wait for new process arrival if ready queue empty 
+		if(isEmptyQueue(ready_q) && 
+		   waitForProcPeriod(&now) == -1)
+			return;
 
 		// finish scheduling
 		if(now == MAX_TIME)
@@ -1060,20 +1051,13 @@ int getLcmFromReadyQueue(){
 }
 
 void STRIDE(){
-	if(proc_arr && proc_arr[0].tickets == INITIAL_VALUE){
-		inputWorkload();
-	}
-
-	int now = 0;
-	updateReadyQueue(now);
+	int now = -1;
 
 	while(1){
-		// wait for new process 
-		waitIfReadyQueueEmpty(&now);
-
-		// finish scheduling
-		if(isEmptyQueue(ready_q))
-			break;
+		// wait for new process arrival if ready queue empty 
+		if(isEmptyQueue(ready_q) && 
+		   waitForProcArrival(&now) == -1)
+			return;
 
 		// find the most stride process and delete it from queue
 		node *target = getLeastStrideNode();
