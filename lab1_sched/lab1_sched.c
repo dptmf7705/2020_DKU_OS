@@ -57,7 +57,7 @@
 
 #define INITIAL_VALUE -1
 
-const char SCHEDULING_NAME[8][20] = {
+const char SCHED_NAME[8][20] = {
 	"FCFS(FIFO)",
 	"RR(Round-Robin)",
 	"SPN(SJF)",
@@ -79,6 +79,19 @@ queue *ready_q;
 queue *result_q;
 
 process *run_proc;
+
+
+void gotoxy(int x, int y){
+	printf("\033[%d;%dH", y + 1, x + 1);
+}
+
+void setColor(color c){
+	printf("\033[%d;1m", c);
+}
+
+void setCursorVisibility(bool visible){
+	printf("\e[?25%c", visible ==  true ? 'h' : 'l');
+}
 
 void printBoard(){
 	gotoxy(0, 0);
@@ -111,9 +124,13 @@ void printProcMenu(){
 	setColor(RESET);
 }
 
-void printWorkloadTable(){
+int getWorkloadPosY(){
+	return TABLE_TOP_ALIGN + (num_of_proc + 2) * TABLE_HEIGHT;
+}
+
+void printWorkload(){
 	int posX = TABLE_LEFT_ALIGN;
-	int posY = getTablePosY() - 1;
+	int posY = getWorkloadPosY() - 1;
 
 	gotoxy(posX, posY);
 	puts(" ◆  Workload  ");
@@ -190,17 +207,13 @@ void printSchedMenu(){
 	int i = 0;
 	while(i < BACK_TO_MAIN - 1){
 		gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN + LINE_SPACE * (i + 1));
-		printf("%s", SCHEDULING_NAME[i++]);
+		printf("%s", SCHED_NAME[i++]);
 	}
 
 	gotoxy(TEXT_LEFT_ALIGN, TEXT_TOP_ALIGN + LINE_SPACE * ++i);
 	setColor(RED);
 	printf("BACK TO MAIN");
 	setColor(RESET);
-}
-
-int getTablePosY(){
-	return TABLE_TOP_ALIGN + (num_of_proc + 2) * TABLE_HEIGHT;
 }
 
 void printSchedTable(){
@@ -260,6 +273,212 @@ void eraseSelectionBox(int index){
 	puts(" ");
 	gotoxy(pos[0], pos[1] + 2);
 	puts("                            ");
+}
+
+void printSchedName(int index){
+	int posX = TABLE_LEFT_ALIGN;
+	int posY = TABLE_TOP_ALIGN - 3;
+	
+	gotoxy(posX, posY);
+	printf(" ◆  %-40s", SCHED_NAME[index - 1]);
+}
+
+void printResultQueue(){
+	int posX = TABLE_LEFT_ALIGN;
+	int posY = TABLE_TOP_ALIGN + 1;
+	const int LEFT_SPACE = 6;
+
+	printSchedTable();
+
+	sched_process *proc = malloc(sizeof(sched_process));
+
+	int now = 0;
+	while(now < MAX_TIME && !isEmptyQueue(result_q)){
+		deleteQueue(result_q, (void**) &proc); 
+		
+		now = proc->start;
+		int index = proc->name - (int) 'A';
+
+		while(now < MAX_TIME && now < proc->start + proc->running){		
+			gotoxy(posX + (now * LEFT_SPACE), posY + (TABLE_HEIGHT * index));
+			printf("│");
+			setColor(proc->color);
+			printf("  %c  ", proc->name);
+			setColor(RESET);
+			printf("│");
+		
+			now++;
+		}
+	}
+
+	free(proc);
+}
+
+void printResultMetrics(){
+	int posX = METRICS_LEFT_ALIGN;
+	int posY = getWorkloadPosY() - 1;
+
+	gotoxy(posX, posY);
+	puts(" ◆  Result Metrics  ");
+
+	gotoxy(posX, ++posY);
+	puts("┌────────────┬────────────┬────────────┬────────────┬────────────┐");
+	gotoxy(posX, ++posY);
+	puts("│  Process   │  Firstrun  │ Completion │ Turnaround │  Response  │");
+
+	int totalT = 0, totalR = 0;
+
+	for(int i = 0 ; i < num_of_proc ; i++){
+		gotoxy(posX, ++posY);
+		puts("├────────────┼────────────┼────────────┼────────────┼────────────┤");
+		gotoxy(posX, ++posY);
+		puts("│            │            │            │            │            │");
+
+		int arrival = proc_arr[i].arrival;
+		int start = proc_arr[i].start;
+		int finish = proc_arr[i].finish;
+
+		if(start == INITIAL_VALUE || finish == INITIAL_VALUE)
+			continue;
+
+		int turnaround = finish - arrival;
+		int response = start - arrival;
+		totalT += turnaround;
+		totalR += response;
+
+		posX += TABLE_MARGIN;
+
+		setColor(RED + (i % NUM_OF_COLORS));
+		gotoxy(posX, posY);
+		printf("%c", proc_arr[i].name);
+		gotoxy(posX + TABLE_WIDTH, posY);
+		printf("%d", start);
+	 	gotoxy(posX + TABLE_WIDTH * 2, posY);
+		printf("%d", finish);
+	 	gotoxy(posX + TABLE_WIDTH * 3, posY);
+		printf("%d", turnaround);
+	 	gotoxy(posX + TABLE_WIDTH * 4, posY);
+		printf("%d", response);
+		setColor(RESET);
+
+		posX -= TABLE_MARGIN;
+	}
+
+	gotoxy(posX, ++posY); posY++;
+	puts("└────────────┴────────────┴────────────┴────────────┴────────────┘");
+	
+	gotoxy(posX, ++posY); posY++;
+	printf(" ◆  Average Turnaround Time = %0.3f\n", totalT / (float) num_of_proc);
+	gotoxy(posX, ++posY);
+	printf(" ◆  Average Response Time   = %0.3f\n", totalR / (float) num_of_proc);
+}
+
+void inputMenu(int *index, const int bound){
+        int key;
+
+	while(1){
+		key = getch();
+
+		/* Enter key pressed */
+		if(key == ENTER){ 
+			return;
+		}
+		
+		/* Arrow key pressed */
+		if(key == ARROW && (key = getch()) == ARROW2){ 
+			key = getch();
+
+			if(key == UP && *index > 1){
+				eraseSelectionBox(*index);
+				(*index)--;
+				printSelectionBox(*index);
+			} else if(key == DOWN && *index < bound){
+				eraseSelectionBox(*index);
+				(*index)++;
+				printSelectionBox(*index);
+			}
+		}
+	}
+}
+
+void inputWorkload(){
+	if(w_type == WORKLOAD_PERIOD && proc_arr && proc_arr[0].period != INITIAL_VALUE)
+		return;
+
+	if(w_type == WORKLOAD_TICKET && proc_arr && proc_arr[0].tickets != INITIAL_VALUE)
+		return;
+
+	int posX = TABLE_LEFT_ALIGN + TABLE_WIDTH * 3 + TABLE_MARGIN;
+	int posY = getWorkloadPosY() + 3;
+
+	setCursorVisibility(true);
+	for(int i = 0 ; i < num_of_proc ; i++){
+	 	gotoxy(posX, posY + i * TABLE_HEIGHT);
+		scanf("%d", w_type == WORKLOAD_PERIOD ? &proc_arr[i].period : &proc_arr[i].tickets);
+	}
+	getch();
+	setCursorVisibility(false);
+}
+
+int inputTimeQuantum(){
+	int posX = TABLE_LEFT_ALIGN + 20;
+	int posY = TABLE_TOP_ALIGN - 3;
+	
+	int tquantum;
+
+	gotoxy(posX, posY);
+	setCursorVisibility(true);
+	setColor(BLU);
+	printf("time quantum = ");
+	scanf("%d", &tquantum);
+	getch();
+	setColor(RESET);
+	setCursorVisibility(false);
+
+	return tquantum;
+}
+
+void init(){
+	w_type = WORKLOAD_DEFAULT;
+	
+	system("clear");
+	setCursorVisibility(false);
+	printBoard();
+	printProcMenu();
+
+	int menuNum = 1;
+	printSelectionBox(menuNum);
+	inputMenu(&menuNum, EXIT);
+
+	if(menuNum == EXIT)
+		return;
+
+	num_of_proc = menuNum + 1;
+	createProcArr();	
+	initSchedMenu();
+	free(proc_arr);
+}
+
+void initSchedMenu(){
+	system("clear");
+	printBoard();
+	printSchedMenu();
+	printSchedTable();
+	printWorkload();
+
+	int menuNum = 1;
+	printSelectionBox(menuNum);
+
+	while(1){
+		inputMenu(&menuNum, BACK_TO_MAIN);
+
+		if(menuNum == BACK_TO_MAIN){
+			init();
+			return;
+		}
+
+		runScheduling(menuNum);
+	}
 }
 
 queue* newQueue(){
@@ -344,82 +563,13 @@ void freeQueue(queue *q){
 	}
 }
 
-void waitSelectionMenu(int *menuNum, int bound){
-        int key;
-
-	while(1){
-		key = getch();
-
-		/* Enter key pressed */
-		if(key == ENTER){ 
-			return;
-		}
-		
-		/* Arrow key pressed */
-		if(key == ARROW && (key = getch()) == ARROW2){ 
-			key = getch();
-
-			if(key == UP && *menuNum > 1){
-				eraseSelectionBox(*menuNum);
-				(*menuNum)--;
-				printSelectionBox(*menuNum);
-			} else if(key == DOWN && *menuNum < bound){
-				eraseSelectionBox(*menuNum);
-				(*menuNum)++;
-				printSelectionBox(*menuNum);
-			}
-		}
-	}
-}
-
-void init(){
-	w_type = WORKLOAD_DEFAULT;
-	
-	system("clear");
-	setCursorVisibility(false);
-	printBoard();
-	printProcMenu();
-
-	int menuNum = 1;
-	printSelectionBox(menuNum);
-	waitSelectionMenu(&menuNum, EXIT);
-
-	if(menuNum == EXIT)
-		return;
-
-	num_of_proc = menuNum + 1;
-	createProcArr();	
-}
-
-void initSchedMenu(){
-	system("clear");
-	printBoard();
-	printSchedMenu();
-	printSchedTable();
-	printWorkloadTable();
-
-	int menuNum = 1;
-	printSelectionBox(menuNum);
-
-	while(1){
-		waitSelectionMenu(&menuNum, BACK_TO_MAIN);
-
-		if(menuNum == BACK_TO_MAIN){
-			init();
-			return;
-		}
-
-		runScheduling(menuNum);
-	}
-}
-
-void resetProc(process *proc){
+void initProc(process *proc){
 	proc->start = INITIAL_VALUE;
 	proc->remain = proc->service;
 	proc->finish = INITIAL_VALUE;
 }
 
-void initProcess(process *proc, char n, int c){
+void createProc(process *proc, char n, int c){
 	proc->name = n;
 	proc->color = c;
 	proc->arrival = INITIAL_VALUE;
@@ -435,14 +585,14 @@ void createProcArr(){
 	proc_arr = malloc(sizeof(process) * num_of_proc);	
 
 	for(int i = 0 ; i < num_of_proc ; i++){
-		initProcess(proc_arr + i, 'A' + i, RED + (i % NUM_OF_COLORS));
+		createProc(proc_arr + i, 'A' + i, RED + (i % NUM_OF_COLORS));
 	}
 
 	int posX = TABLE_LEFT_ALIGN + TABLE_MARGIN + TABLE_WIDTH;
-	int posY = getTablePosY() + TABLE_HEIGHT * 2 - 1;
+	int posY = getWorkloadPosY() + TABLE_HEIGHT * 2 - 1;
 
 	printSchedTable();
-	printWorkloadTable();
+	printWorkload();
 
 	setCursorVisibility(true);
 	for(int i = 0 ; i < num_of_proc ; i++){
@@ -453,155 +603,16 @@ void createProcArr(){
 		proc_arr[i].remain = proc_arr[i].service;
 	}
 	getchar();
-	setCursorVisibility(false);
-	
-	initSchedMenu();
-
-	free(proc_arr);
+	setCursorVisibility(false);	
 }
 
-void inputWorkload(){
-	if(w_type == WORKLOAD_PERIOD && proc_arr && proc_arr[0].period != INITIAL_VALUE)
-		return;
-
-	if(w_type == WORKLOAD_TICKET && proc_arr && proc_arr[0].tickets != INITIAL_VALUE)
-		return;
-
-	int posX = TABLE_LEFT_ALIGN + TABLE_WIDTH * 3 + TABLE_MARGIN;
-	int posY = getTablePosY() + 3;
-
-	setCursorVisibility(true);
-	for(int i = 0 ; i < num_of_proc ; i++){
-	 	gotoxy(posX, posY + i * TABLE_HEIGHT);
-		scanf("%d", w_type == WORKLOAD_PERIOD ? &proc_arr[i].period : &proc_arr[i].tickets);
-	}
-	getch();
-	setCursorVisibility(false);
-}
-
-void printResultQueue(){
-	int posX = TABLE_LEFT_ALIGN;
-	int posY = TABLE_TOP_ALIGN + 1;
-	const int LEFT_SPACE = 6;
-
-	printSchedTable();
-
-	sched_process *proc = malloc(sizeof(sched_process));
-
-	int now = 0;
-	while(now < MAX_TIME && !isEmptyQueue(result_q)){
-		deleteQueue(result_q, (void**) &proc); 
-		
-		now = proc->start;
-		int index = proc->name - (int) 'A';
-
-		while(now < MAX_TIME && now < proc->start + proc->running){		
-			gotoxy(posX + (now * LEFT_SPACE), posY + (TABLE_HEIGHT * index));
-			printf("│");
-			setColor(proc->color);
-			printf("  %c  ", proc->name);
-			setColor(RESET);
-			printf("│");
-		
-			now++;
-		}
-	}
-
-	free(proc);
-}
-
-void printResultMetrics(){
-	int posX = METRICS_LEFT_ALIGN;
-	int posY = getTablePosY() - 1;
-
-	gotoxy(posX, posY);
-	puts(" ◆  Result Metrics  ");
-
-	gotoxy(posX, ++posY);
-	puts("┌────────────┬────────────┬────────────┬────────────┬────────────┐");
-	gotoxy(posX, ++posY);
-	puts("│  Process   │  Firstrun  │ Completion │ Turnaround │  Response  │");
-
-	int totalT = 0, totalR = 0;
-
-	for(int i = 0 ; i < num_of_proc ; i++){
-		gotoxy(posX, ++posY);
-		puts("├────────────┼────────────┼────────────┼────────────┼────────────┤");
-		gotoxy(posX, ++posY);
-		puts("│            │            │            │            │            │");
-
-		int arrival = proc_arr[i].arrival;
-		int start = proc_arr[i].start;
-		int finish = proc_arr[i].finish;
-
-		if(start == INITIAL_VALUE || finish == INITIAL_VALUE)
-			continue;
-
-		int turnaround = finish - arrival;
-		int response = start - arrival;
-		totalT += turnaround;
-		totalR += response;
-
-		posX += TABLE_MARGIN;
-
-		setColor(RED + (i % NUM_OF_COLORS));
-		gotoxy(posX, posY);
-		printf("%c", proc_arr[i].name);
-		gotoxy(posX + TABLE_WIDTH, posY);
-		printf("%d", start);
-	 	gotoxy(posX + TABLE_WIDTH * 2, posY);
-		printf("%d", finish);
-	 	gotoxy(posX + TABLE_WIDTH * 3, posY);
-		printf("%d", turnaround);
-	 	gotoxy(posX + TABLE_WIDTH * 4, posY);
-		printf("%d", response);
-		setColor(RESET);
-
-		posX -= TABLE_MARGIN;
-	}
-
-	gotoxy(posX, ++posY); posY++;
-	puts("└────────────┴────────────┴────────────┴────────────┴────────────┘");
-	
-	gotoxy(posX, ++posY); posY++;
-	printf(" ◆  Average Turnaround Time = %0.3f\n", totalT / (float) num_of_proc);
-	gotoxy(posX, ++posY);
-	printf(" ◆  Average Response Time   = %0.3f\n", totalR / (float) num_of_proc);
-}
-
-void printSchedulingTitle(int index){
-	int posX = TABLE_LEFT_ALIGN;
-	int posY = TABLE_TOP_ALIGN - 3;
-	
-	gotoxy(posX, posY);
-	printf(" ◆  %-40s", SCHEDULING_NAME[index - 1]);
-}
-
-int inputTimeQuantum(){
-	int posX = TABLE_LEFT_ALIGN + 20;
-	int posY = TABLE_TOP_ALIGN - 3;
-	
-	int tquantum;
-
-	gotoxy(posX, posY);
-	setCursorVisibility(true);
-	setColor(BLU);
-	printf("time quantum = ");
-	scanf("%d", &tquantum);
-	getch();
-	setColor(RESET);
-	setCursorVisibility(false);
-
-	return tquantum;
-}
-
-void runScheduling(int index){
+void initScheduling(int index){
 	system("clear");
 	printBoard();
 	printSchedMenu();
 	printSchedTable();
 	printSelectionBox(index);
-	printSchedulingTitle(index);
+	printSchedName(index);
 
 	// init ready queue
 	ready_q_cnt = 1;
@@ -612,10 +623,26 @@ void runScheduling(int index){
 	run_proc = malloc(sizeof(process));
 	
 	w_type = WORKLOAD_DEFAULT;
-	printWorkloadTable();
+	printWorkload();
+}
+
+void freeResources(){
+	// free ready queue
+	for(int i = 0 ; i < ready_q_cnt ; i++){
+		freeQueue(ready_q + i);
+	}	
+	free(ready_q);
+
+	// free result queue
+	freeQueue(result_q);
+	free(result_q);
+}
+
+void runScheduling(int index){
+	initScheduling(index);
 
 	for(int i = 0 ; i < num_of_proc ; i++){
-		resetProc(proc_arr + i);
+		initProc(proc_arr + i);
 	}
 	
 	switch(index){
@@ -645,13 +672,13 @@ void runScheduling(int index){
 			break;
 		case 7:
 			w_type = WORKLOAD_PERIOD;
-			printWorkloadTable();
+			printWorkload();
 			inputWorkload();
 			RM();
 			break;
 		case 8:
 			w_type = WORKLOAD_TICKET;
-			printWorkloadTable();
+			printWorkload();
 			inputWorkload();
 			STRIDE();
 			printResultMetrics();
@@ -659,16 +686,7 @@ void runScheduling(int index){
 	}
 
 	printResultQueue();
-
-	// free ready queue
-	for(int i = 0 ; i < ready_q_cnt ; i++){
-		freeQueue(ready_q + i);
-	}	
-	free(ready_q);
-
-	// free result queue
-	freeQueue(result_q);
-	free(result_q);
+	freeResources();
 }
 
 void updateReadyQueue(int now){
@@ -679,7 +697,23 @@ void updateReadyQueue(int now){
 	}
 }
 
-bool isProcAllFinish(){
+void updatePeriodReadyQueue(int now){
+	for(int i = 0 ; i < num_of_proc ; i++){
+		int parr = 0;
+		int cnt = 0;
+		int arr = proc_arr[i].arrival;
+		int p = proc_arr[i].period;
+		while(parr <= now){
+			parr = arr + p * cnt++; 
+			if(now == parr){
+				initProc(proc_arr + i);
+				insertQueue(ready_q, proc_arr + i);
+			}
+		}
+	}
+}
+
+bool isAllProcFinish(){
 	for(int i = 0 ; i < num_of_proc ; i++){
 		if(proc_arr[i].finish == INITIAL_VALUE)
 			return false;
@@ -690,7 +724,7 @@ bool isProcAllFinish(){
 
 int waitForProcArrival(int *now){
 	// finish scheduling
-	if(isProcAllFinish()) 
+	if(isAllProcFinish()) 
 		return -1;
 
 	while(isEmptyQueue(ready_q)){
@@ -711,29 +745,13 @@ int waitForProcPeriod(int *now){
 	return 0;
 }
 
-void updatePeriodReadyQueue(const int now){
-	for(int i = 0 ; i < num_of_proc ; i++){
-		int parr = 0;
-		int cnt = 0;
-		int arr = proc_arr[i].arrival;
-		int p = proc_arr[i].period;
-		while(parr <= now){
-			parr = arr + p * cnt++; 
-			if(now == parr){
-				resetProc(proc_arr + i);
-				insertQueue(ready_q, proc_arr + i);
-			}
-		}
-	}
-}
-
-sched_process* newSchedProc(process *source, int start, int running){
+sched_process* newSchedProc(process *src, int s, int r){
 	sched_process *proc = malloc(sizeof(sched_process));
 	
-	proc->name = source->name;
-	proc->color = source->color;
-	proc->start = start;
-	proc->running = running;
+	proc->name = src->name;
+	proc->color = src->color;
+	proc->start = s;
+	proc->running = r;
 
 	return proc;
 }
@@ -764,60 +782,6 @@ void schedule(process *proc, int *now, const int t_while){
 	}
 
 	insertQueue(result_q, newSchedProc(proc, start, running));
-}
-
-/*
- * find the shortest process node in ready queue
- */
-node* getShortestJobNode(){
-	if(isEmptyQueue(ready_q))
-		return NULL;
-
-	node *curr = ready_q->head->next;
-	process *currPros = (process *) curr->data;
-
-	node *shortest = curr;
-	while(curr != NULL && curr != ready_q->tail){
-		if(currPros->remain < ((process *) shortest->data)->remain)
-			shortest = curr;
-		curr = curr->next;
-		currPros = (process *) curr->data;
-	}
-
-	return shortest;
-}
-
-/*
- * calculate response ratio
- * 1 + ( Waiting Time / Estimated Run Time )
- */
-float getResponseRatio(int now, process *proc){
-	return 1 + (float) (now - proc->arrival) / (float) proc->service;
-}
-
-/*
- * find the highest response ratio process node in ready queue
- */
-node* getHighestRRNode(int now){
-	if(isEmptyQueue(ready_q))
-		return NULL;
-
-	node *curr = ready_q->head->next;
-	process *currPros = (process *) curr->data;
-
-	node *highest = curr;
-	float maxRatio = getResponseRatio(now, currPros);
-	while(curr != NULL && curr != ready_q->tail){
-		float currRatio = getResponseRatio(now, currPros);
-		if(maxRatio < currRatio){
-			highest = curr;
-			maxRatio = currRatio;
-		}
-		curr = curr->next;
-		currPros = (process *) curr->data;	
-	}
-
-	return highest;
 }
 
 void FCFS(){
@@ -861,6 +825,27 @@ void RR(const int t_quantum){
 	}
 }
 
+/*
+ * find the shortest process node in ready queue
+ */
+node* getShortestJobNode(){
+	if(isEmptyQueue(ready_q))
+		return NULL;
+
+	node *curr = ready_q->head->next;
+	process *currPros = (process *) curr->data;
+
+	node *shortest = curr;
+	while(curr != NULL && curr != ready_q->tail){
+		if(currPros->remain < ((process *) shortest->data)->remain)
+			shortest = curr;
+		curr = curr->next;
+		currPros = (process *) curr->data;
+	}
+
+	return shortest;
+}
+
 void SJF(){
 	int now = -1;
 
@@ -877,6 +862,39 @@ void SJF(){
 		// run until the process finish
 		schedule(run_proc, &now, run_proc->service);
 	}
+}
+
+/*
+ * calculate response ratio
+ * 1 + ( Waiting Time / Estimated Run Time )
+ */
+float getResponseRatio(int now, process *proc){
+	return 1 + (float) (now - proc->arrival) / (float) proc->service;
+}
+
+/*
+ * find the highest response ratio process node in ready queue
+ */
+node* getHighestRRNode(int now){
+	if(isEmptyQueue(ready_q))
+		return NULL;
+
+	node *curr = ready_q->head->next;
+	process *currPros = (process *) curr->data;
+
+	node *highest = curr;
+	float maxRatio = getResponseRatio(now, currPros);
+	while(curr != NULL && curr != ready_q->tail){
+		float currRatio = getResponseRatio(now, currPros);
+		if(maxRatio < currRatio){
+			highest = curr;
+			maxRatio = currRatio;
+		}
+		curr = curr->next;
+		currPros = (process *) curr->data;	
+	}
+
+	return highest;
 }
 
 void HRRN(){
@@ -897,30 +915,30 @@ void HRRN(){
 	}
 }
 
-void increaseReadyQueue(){
-	ready_q = realloc(ready_q, sizeof(queue) * ++ready_q_cnt);
-	ready_q[ready_q_cnt - 1] = *newQueue();
-}
-
 /*
  * find the level of queue not empty (exist process to run)
  */
 int findNotEmptyQueueLevel(int *now){
 	// all process finished
-	if(isProcAllFinish())
+	if(isAllProcFinish())
 		return -1;
 
 	while(1){
 		int level = 0;
 		while(level < ready_q_cnt){
 			/* queue is not empty */
-			if(!isEmptyQueue(&ready_q[level]))
+			if(!isEmptyQueue(ready_q + level))
 				return level;
 			level++;
 		}
 
 		updateReadyQueue(++(*now));
 	}
+}
+
+void increaseReadyQueue(){
+	ready_q = realloc(ready_q, sizeof(queue) * ++ready_q_cnt);
+	ready_q[ready_q_cnt - 1] = *newQueue();
 }
 
 void MLFQ(const feedback_type type, const int t_quantum){
@@ -1009,6 +1027,24 @@ void RM(){
 	}
 }
 
+int getLcmFromReadyQueue(){
+	node *curr = ready_q->head->next;
+	process *currProc = (process *) curr->data;
+
+	int lcm = 1;
+	while(curr && curr != ready_q->tail){
+		lcm = LCM(lcm, currProc->tickets);
+		curr = curr->next;
+		currProc = (process *) curr->data;
+	}
+
+	return lcm;
+}
+
+int getStrideSum(process *proc, int lcm){
+	return lcm / proc->tickets * (proc->service - proc->remain);
+}
+
 node* getLeastStrideNode(){
 	if(isEmptyQueue(ready_q))
 		return NULL;
@@ -1032,24 +1068,6 @@ node* getLeastStrideNode(){
 	return target;
 }
 
-int getStrideSum(process *proc, int lcm){
-	return lcm / proc->tickets * (proc->service - proc->remain);
-}
-
-int getLcmFromReadyQueue(){
-	node *curr = ready_q->head->next;
-	process *currProc = (process *) curr->data;
-
-	int lcm = 1;
-	while(curr && curr != ready_q->tail){
-		lcm = LCM(lcm, currProc->tickets);
-		curr = curr->next;
-		currProc = (process *) curr->data;
-	}
-
-	return lcm;
-}
-
 void STRIDE(){
 	int now = -1;
 
@@ -1068,19 +1086,6 @@ void STRIDE(){
 		if(run_proc->remain == 0)
 			deleteQueueNode(ready_q, target, (void **) &run_proc);
 	}
-}
-
-
-void gotoxy(int x, int y){
-	printf("\033[%d;%dH", y + 1, x + 1);
-}
-
-void setColor(color c){
-	printf("\033[%d;1m", c);
-}
-
-void setCursorVisibility(bool visible){
-	printf("\e[?25%c", visible ==  true ? 'h' : 'l');
 }
 
 int getch(){

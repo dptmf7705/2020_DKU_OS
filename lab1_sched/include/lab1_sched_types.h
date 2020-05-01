@@ -71,7 +71,7 @@ typedef struct _sched_process {
 } sched_process;
 
 /*
- * process queue node
+ * queue node
  */
 typedef	struct _node {
 	void		*data;
@@ -87,76 +87,90 @@ typedef struct _queue {
 
 
 /*
- * formatting output
+ * I/O
  */
+void gotoxy(int x, int y);
+void setColor(color c);
+void setCursorVisibility(bool visible);
 void printBoard();
-void printProcessMenu();
-void printWorkloadTable();
+void printProcMenu();
+int getWorkloadPosY();
+void printWorkload();
 void printSchedMenu();
 void printSchedTable();
+void findSelectionBoxPosition(int index);
 void printSelectionBox(int index);
 void eraseSelectionBox(int index);
-void findSelectionBoxPosition(int index);
-int getTablePosY();
-
-/*
- * init menu
- */
+void printSchedName();
+void printResultQueue();
+void printResultMetrics();
+void inputMenu(int *index, const int bound);
+void inputWorkload();
+int inputTimeQuantum();
 void init();
 void initSchedMenu();
-void createProcArr();	
-void sortProcessArrByArrivalTime();
+int getch();
 
 /*
- * managing queue
+ * queue
  */
 queue* newQueue();
 bool isEmptyQueue(queue *q);
-void* getFromQueue(queue *q, int pos);
 void insertQueue(queue *q, void *data);
 void deleteQueue(queue *q, void **data);
-void deleteQueuePosition(queue *q, int pos, void **data);
 void deleteQueueNode(queue *q, node *node, void **data);
 void freeQueue(queue *q);
 
 /* 
- * init scheduling 
+ * process 
  */
-void runScheduling(int num);
+void initProc(process *proc);
+void createProc(process *proc, char n, int c);
+void createProcArr();
+
+/*
+ * scheduling
+ */
+void initScheduling(int index);
+void freeResources();
+void runScheduling(int index);
 void updateReadyQueue(int now);
 void updatePeriodReadyQueue(int now);
-void waitIfReadyQueueEmpty(int *now);
-void updateReadyQueueTimeout(process *proc);
-void printResultQueue();
-sched_process* newSchedProcess(process *source, int start, int running);
+bool isAllProcFinish();
+int waitForProcArrival(int *now);
+int waitForProcPeriod(int *now);
+sched_process* newSchedProcess(process *src, int s, int r);
+void schedule(process *proc, int *now, const int t_while);
 
-bool beginScheduling();
 /*
- * scheduling algorithms 
+ * scheduling algorithms
  */
+// FCFS
 void FCFS();
+// RR
 void RR(const int t_quantum);
+// SJF
+node* getShortestJobNode();
 void SJF();
+// HRRN
+float getResponseRatio(int now, process *proc);
+node* getHighestRRNode(int now);
 void HRRN();
+// MLFQ
+int findNotEmptyQueueLevel(int *now);
+void increaseReadyQueue();
+int POW(int a, int b);
 void MLFQ(const feedback_type type, const int t_quantum);
+// RM
+node* getLeastPeriodNode();
 void RM();
-
-
+// STRIDE
+int GCD(int a, int b);
+int LCM(int a, int b);
 int getLcmFromReadyQueue();
 int getStrideSum();
 void STRIDE();
 
-node* getShortestProcNodeInReadyQueue();
-
-void gotoxy(int x, int y);
-void setColor(color c);
-void setCursorVisibility(bool visible);
-
-int getch();
-
-int POW(int a, int b);
-int GCD(int a, int b);
-int LCM(int a, int b);
 
 #endif /* LAB1_HEADER_H*/
 
